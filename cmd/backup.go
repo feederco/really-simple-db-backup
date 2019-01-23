@@ -36,14 +36,16 @@ func Begin(cliArgs []string) {
 
 	args := cliArgs[1:]
 
-	uploadFileFlag := flag.String("upload-file", "", "[upload] File to upload to bucket")
-	existingVolumeIDFlag := flag.String("existing-volume-id", "", "Existing volume ID")
-
 	if len(args) == 0 {
 		pkg.ErrorLog.Printf("Usage:\n%s perform|perform-full|perform-incremental|restore|upload [flags]\n\n", os.Args[0])
-		flag.Usage()
 		os.Exit(1)
 	}
+
+	uploadFileFlag := flag.String("upload-file", "", "[upload] File to upload to bucket")
+	existingVolumeIDFlag := flag.String("existing-volume-id", "", "Existing volume ID")
+	verboseFlag := flag.Bool("v", false, "Verbose logging")
+
+	pkg.VerboseMode = *verboseFlag
 
 	configStruct := loadConfig(args[1:])
 

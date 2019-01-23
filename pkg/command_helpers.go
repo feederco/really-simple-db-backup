@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	"os"
 	"os/exec"
 	"strings"
 )
@@ -30,7 +29,9 @@ func ParseCommandLineFlags(args []string) error {
 
 // PerformCommand performs a command line command with nice helpers
 func PerformCommand(cmdArgs ...string) (string, error) {
-	Log.Printf("== `%s`\n", strings.Join(cmdArgs, " "))
+	if VerboseMode {
+		Log.Printf("== `%s`\n", strings.Join(cmdArgs, " "))
+	}
 
 	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
 	cmdReader, err := cmd.StdoutPipe()
@@ -44,14 +45,18 @@ func PerformCommand(cmdArgs ...string) (string, error) {
 	go func() {
 		for scanner.Scan() {
 			chunk := scanner.Text()
-			fmt.Printf("%s\n", chunk)
+			if VerboseMode {
+				fmt.Printf("%s\n", chunk)
+			}
 			output += chunk + "\n"
 		}
 	}()
 
 	err = cmd.Start()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error starting Cmd", err)
+		if VerboseMode {
+			ErrorLog.Println("Error starting Cmd", err)
+		}
 		return "", err
 	}
 
