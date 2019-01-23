@@ -1,0 +1,9 @@
+{
+  "do_key": "hi: do_key",
+  "do_space_endpoint": "hi: do_space_endpoint",
+  "do_space_name": "hi: do_space_name",
+  "do_space_key": "hi: do_space_key",
+  "do_space_secret": "hi: do_space_secret",
+  "mysql_data_path": "hi: mysql_data_path",
+  "persistent_storage": "hi: persistent_storage"
+}
