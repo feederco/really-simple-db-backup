@@ -41,13 +41,13 @@ really-simple-db-backup perform \
 To force a full backup you can use the `perform-full` command.
 
 ```shell
-really-simple-db-backup perform-full -options...
+really-simple-db-backup perform-full
 ```
 
 To force an incremental backup you can use the `perform-incremental` command.
 
 ```shell
-really-simple-db-backup perform-full -options...
+really-simple-db-backup perform-incremental
 ```
 
 ### Force upload
@@ -55,7 +55,7 @@ really-simple-db-backup perform-full -options...
 If for some reason a backup failed and you were successfully able to retrieve a backup yourself, you can use the `upload` command to upload this to your DigitalOcean Space.
 
 ```shell
-really-simple-db-backup upload -file /path/to/backup.xbstream -options...
+really-simple-db-backup upload -file /path/to/backup.xbstream
 ```
 
 ### Config file
