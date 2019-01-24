@@ -10,6 +10,18 @@ import (
 	"github.com/feederco/really-simple-db-backup/pkg"
 )
 
+// ConfigStruct contains information that can be preloaded from a .json file
+type ConfigStruct struct {
+	DOKey             string              `json:"do_key"`
+	DOSpaceEndpoint   string              `json:"do_space_endpoint"`
+	DOSpaceName       string              `json:"do_space_name"`
+	DOSpaceKey        string              `json:"do_space_key"`
+	DOSpaceSecret     string              `json:"do_space_secret"`
+	MysqlDataPath     string              `json:"mysql_data_path"`
+	PersistentStorage string              `json:"persistent_storage"`
+	Alerting          *pkg.AlertingConfig `json:"alerting"`
+}
+
 func loadConfig(args []string) ConfigStruct {
 	const defaultConfigPath = "/etc/really-simple-db-backup.json"
 

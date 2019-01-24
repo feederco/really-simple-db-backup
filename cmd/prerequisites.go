@@ -57,7 +57,7 @@ func backupPrerequisites() error {
 	if versionString[2] == "Ver" {
 		versionPieces := strings.Split(versionString[3], ".")
 		if versionPieces[0] != requiredMysqlVersion {
-			return fmt.Errorf("Incorrect MySQL version installed. error version. %s found, %s required.", versionPieces[0], requiredMysqlVersion)
+			return fmt.Errorf("Incorrect MySQL version installed. error version. %s found, %s required", versionPieces[0], requiredMysqlVersion)
 		}
 	}
 

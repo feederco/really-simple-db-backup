@@ -77,14 +77,14 @@ func backupMysqlPerform(backupType string, backupsBucket string, mysqlDataPath s
 	err = (func() error {
 		err = os.MkdirAll(backupDirectory, 0755)
 		if err != nil {
-			pkg.AlertError("Could not create backup directory.", err)
+			pkg.AlertError(configStruct.Alerting, "Could not create backup directory.", err)
 			return err
 		}
 
 		var outputFile *os.File
 		outputFile, err = os.Create(backupFileTemporary)
 		if err != nil {
-			pkg.AlertError("Could not create backup file.", err)
+			pkg.AlertError(configStruct.Alerting, "Could not create backup file.", err)
 			return err
 		}
 		defer outputFile.Close()
@@ -104,7 +104,7 @@ func backupMysqlPerform(backupType string, backupsBucket string, mysqlDataPath s
 		if backupType == backupTypeIncremental {
 			lastLsn, lsnErr := getLastLSNFromFile(checkpointFilePath)
 			if lsnErr != nil {
-				pkg.AlertError("Could not fetch LSN from checkpoint file while doing incremental backup.", lsnErr)
+				pkg.AlertError(configStruct.Alerting, "Could not fetch LSN from checkpoint file while doing incremental backup.", lsnErr)
 				return lsnErr
 			}
 
@@ -120,19 +120,19 @@ func backupMysqlPerform(backupType string, backupsBucket string, mysqlDataPath s
 
 		err = backupCmd.Start()
 		if err != nil {
-			pkg.AlertError("Could not start xtrabackup command.", err)
+			pkg.AlertError(configStruct.Alerting, "Could not start xtrabackup command.", err)
 			return err
 		}
 
 		err = backupCmd.Wait()
 		if err != nil {
-			pkg.AlertError("Could not create backup.", err)
+			pkg.AlertError(configStruct.Alerting, "Could not create backup.", err)
 			return err
 		}
 
 		err = os.Rename(backupFileTemporary, backupFile)
 		if err != nil {
-			pkg.AlertError("Backup was completed but couldnt rename the file to reflect this.", err)
+			pkg.AlertError(configStruct.Alerting, "Backup was completed but couldnt rename the file to reflect this.", err)
 			return err
 		}
 
@@ -140,14 +140,14 @@ func backupMysqlPerform(backupType string, backupsBucket string, mysqlDataPath s
 	})()
 
 	if err != nil {
-		pkg.AlertError("Could not create backup. Leaving it as is!", err)
+		pkg.AlertError(configStruct.Alerting, "Could not create backup. Leaving it as is!", err)
 		return err
 	}
 
 	// - On success: upload to a bucket
 	err = backupMysqlUpload(backupFile, backupsBucket, minioClient)
 	if err != nil {
-		pkg.AlertError("Could not upload backup to directory. Leaving it as is!", err)
+		pkg.AlertError(configStruct.Alerting, "Could not upload backup to directory. Leaving it as is!", err)
 		return err
 	}
 
