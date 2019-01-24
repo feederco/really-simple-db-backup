@@ -51,7 +51,7 @@ func createAndMountVolumeForUse(volumePrefix string, sizeInGb int64, digitalOcea
 	mountDirectory, err = pkg.MountVolume(volume.Name, volume.ID, thisHost.DropletID, digitalOceanClient)
 
 	if err != nil {
-		pkg.AlertError("Could not mount volume "+volume.ID, err)
+		pkg.AlertError(configStruct.Alerting, "Could not mount volume "+volume.ID, err)
 		return volume, mountDirectory, err
 	}
 

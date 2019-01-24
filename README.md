@@ -20,7 +20,7 @@ scp build/really-simple-db-backup my-db-host:/usr/bin/really-simple-db-backup
 ### Available commands
 
 ```shell
-really-simple-db-backup perform|perform-full|perform-incremental|upload
+really-simple-db-backup perform|perform-full|perform-incremental|upload|test-alert
 ```
 
 ### Perform backup
@@ -58,7 +58,15 @@ If for some reason a backup failed and you were successfully able to retrieve a 
 really-simple-db-backup upload -file /path/to/backup.xbstream
 ```
 
-### Config file
+### Test alert
+
+To make sure the Slack integration is setup correctly you can use the `test-alert` command to run the same code path that will be executed on a critical error.
+
+```shell
+really-simple-db-backup test-alert
+```
+
+## Configuration
 
 By default the script checks for the existence of a config file at `/etc/really-simple-db-backup.json`. If this is found the defaults are loaded from that file and can be overriden by command line options.
 
@@ -78,7 +86,12 @@ The following format is expected:
   "do_space_key": "auth-key-for-space",
   "do_space_secret": "auth-secret-for-space",
   "mysql_data_path": "(optional)",
-  "persistent_storage": "(optional)"
+  "persistent_storage": "(optional)",
+  "alerting": {
+    "slack": {
+      "webhook_url": "https://hooks.slack.com/services/<your-webhook-url>"
+    }
+  }
 }
 ```
 
@@ -109,16 +122,34 @@ When running the following things happen:
 
 ### _WIP_ Restoring
 
-## _WIP_ Alerting
+## Alerting
 
 Backup failures should not be happen silently. Therefor alerting to Slack is built-in to this project.
+
+### Slack
+
+You need to create a `Custom Integration` in your Slack channel with the type `Incoming WebHook`. We recommend creating a separate channel with must-action messages.
+
+![](https://i.imgur.com/tkYCqSW.png?1)
+
+#### Config options
+
+The `slack` entry in the config file can have the following options:
+
+```
+{
+  "webhook_url": "webhook URL",
+  "channel": "Override default channel to share to",
+  "username": "Override username (default: BackupsBot)",
+  "icon_emoji": "Override avatar of bot (default: :card_file_box: 🗃)",
+}
+```
 
 # WIP
 
 The following functionality has yet been implemented.
 
 1. Restore functionality
-2. Pluggable alert functionality: Slack alert on failure
 
 ## For maintainers
 

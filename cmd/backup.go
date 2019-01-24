@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"flag"
 	"log"
 	"os"
@@ -18,26 +19,17 @@ const backupTypeIncremental = "incremental"
 const backupTypeFull = "full"
 const backupTypeDecide = "decide"
 
-// ConfigStruct contains information that can be preloaded from a .json file
-type ConfigStruct struct {
-	DOKey             string `json:"do_key"`
-	DOSpaceEndpoint   string `json:"do_space_endpoint"`
-	DOSpaceName       string `json:"do_space_name"`
-	DOSpaceKey        string `json:"do_space_key"`
-	DOSpaceSecret     string `json:"do_space_secret"`
-	MysqlDataPath     string `json:"mysql_data_path"`
-	PersistentStorage string `json:"persistent_storage"`
-}
+var configStruct ConfigStruct
 
 // Begin begin!
 func Begin(cliArgs []string) {
-	pkg.Log = log.New(os.Stdout, "", 0)
-	pkg.ErrorLog = log.New(os.Stderr, "", 0)
+	pkg.Log = log.New(os.Stdout, "", log.LstdFlags)
+	pkg.ErrorLog = log.New(os.Stderr, "", log.LstdFlags)
 
 	args := cliArgs[1:]
 
 	if len(args) == 0 {
-		pkg.ErrorLog.Printf("Usage:\n%s perform|perform-full|perform-incremental|restore|upload [flags]\n\n", os.Args[0])
+		pkg.ErrorLog.Printf("Usage:\n%s perform|perform-full|perform-incremental|restore|upload|test-alert [flags]\n\n", os.Args[0])
 		os.Exit(1)
 	}
 
@@ -47,7 +39,7 @@ func Begin(cliArgs []string) {
 
 	pkg.VerboseMode = *verboseFlag
 
-	configStruct := loadConfig(args[1:])
+	configStruct = loadConfig(args[1:])
 
 	if configStruct.DOSpaceName == "" {
 		pkg.ErrorLog.Fatalln("-do-space-name parameter required")
@@ -97,6 +89,8 @@ func Begin(cliArgs []string) {
 		}
 
 		err = backupMysqlUpload(*uploadFileFlag, configStruct.DOSpaceName, minioClient)
+	case "test-alert":
+		pkg.AlertError(configStruct.Alerting, "This is a test alert. Please ignore.", errors.New("Test error"))
 	default:
 		pkg.ErrorLog.Println("Unknown backup command:", args[0])
 	}
@@ -110,7 +104,7 @@ func backupCleanup(volume *godo.Volume, mountDirectory string, digitalOceanClien
 	if mountDirectory != "" {
 		err := pkg.UnmountVolume(mountDirectory, volume.ID, volume.DropletIDs[0], digitalOceanClient)
 		if err != nil {
-			pkg.AlertError("Could not unmount volume.", err)
+			pkg.AlertError(configStruct.Alerting, "Could not unmount volume.", err)
 			return err
 		}
 	}
@@ -118,7 +112,7 @@ func backupCleanup(volume *godo.Volume, mountDirectory string, digitalOceanClien
 	if volume != nil {
 		err := pkg.DestroyVolume(volume.ID, digitalOceanClient)
 		if err != nil {
-			pkg.AlertError("Could not destroy volume: "+volume.ID, err)
+			pkg.AlertError(configStruct.Alerting, "Could not destroy volume: "+volume.ID, err)
 			return err
 		}
 	}
