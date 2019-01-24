@@ -20,6 +20,13 @@ type ConfigStruct struct {
 	MysqlDataPath     string              `json:"mysql_data_path"`
 	PersistentStorage string              `json:"persistent_storage"`
 	Alerting          *pkg.AlertingConfig `json:"alerting"`
+	Retention         *RetentionConfig    `json:"retention"`
+}
+
+// RetentionConfig contains options for scheduling: how often full backups are run, retention of old backups
+type RetentionConfig struct {
+	RetentionInDays         int `json:"retention_in_days"`
+	HoursBetweenFullBackups int `json:"hours_between_full_backups"`
 }
 
 func loadConfig(args []string) ConfigStruct {
