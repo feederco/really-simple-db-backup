@@ -93,6 +93,8 @@ func Begin(cliArgs []string) {
 			hostname = *hostnameFlag
 		}
 
+		pkg.Log.Printf("Loading backups for %s\n", hostname)
+
 		var backups []backupItem
 		backups, err = listAllBackups(hostname, configStruct.DOSpaceName, minioClient)
 
