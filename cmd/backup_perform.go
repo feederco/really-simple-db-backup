@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"errors"
+	"fmt"
 	"path"
+	"time"
 
 	"github.com/feederco/really-simple-db-backup/pkg"
 
@@ -34,11 +36,9 @@ func backupMysqlPerform(backupType string, backupsBucket string, mysqlDataPath s
 	}
 
 	if backupType == backupTypeDecide {
-		lastLsn, lastLsnErr := getLastLSNFromFile(checkpointFilePath)
-		if lastLsnErr == nil && len(lastLsn) > 0 {
-			backupType = backupTypeIncremental
-		} else {
-			backupType = backupTypeFull
+		backupType, err = backupDecide(checkpointFilePath, "", "", minioClient)
+		if err != nil {
+			pkg.AlertError(configStruct.Alerting, "Could not decide backup type", err)
 		}
 
 		pkg.Log.Printf("Decided on backup type: %s\n", backupType)
@@ -157,4 +157,23 @@ func backupMysqlPerform(backupType string, backupsBucket string, mysqlDataPath s
 	}
 
 	return backupCleanup(volume, mountDirectory, digitalOceanClient)
+}
+
+func backupDecide(checkpointFilePath string, hostname string, doSpaceName string, minioClient *minio.Client) (string, error) {
+	lastLsn, lastLsnErr := getLastLSNFromFile(checkpointFilePath)
+	if lastLsnErr != nil || len(lastLsn) == 0 {
+		return backupTypeFull, nil
+	}
+
+	allBackups, err := listAllBackups(hostname, doSpaceName, minioClient)
+	if err != nil {
+		return "", err
+	}
+
+	backupsSince := findRelevantBackupsUpTo(time.Now(), allBackups)
+	for _, backup := range backupsSince {
+		fmt.Println("BACKUP", backup)
+	}
+
+	return backupTypeFull, nil
 }

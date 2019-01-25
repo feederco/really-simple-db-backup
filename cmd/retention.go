@@ -3,6 +3,7 @@ package cmd
 import (
 	"errors"
 	"path"
+	"sort"
 	"strings"
 	"time"
 
@@ -44,7 +45,31 @@ func listAllBackups(hostname string, doSpaceName string, minioClient *minio.Clie
 		backupItems = append(backupItems, datum)
 	}
 
+	sort.Sort(byCreatedAt(backupItems))
+
 	return backupItems, nil
+}
+
+func findRelevantBackupsUpTo(sinceTimestamp time.Time, allBackups []backupItem) []backupItem {
+	if len(allBackups) == 0 {
+		return nil
+	}
+
+	backups := make([]backupItem, 0)
+	for i := len(allBackups) - 1; i >= 0; i-- {
+		backup := allBackups[i]
+		if backup.CreatedAt.Unix() > sinceTimestamp.Unix() {
+			continue
+		}
+
+		backups = append(backups, backup)
+
+		if backup.BackupType == "full" {
+			break
+		}
+	}
+
+	return backups
 }
 
 func newBackupItemFromMinioObject(minioObject minio.ObjectInfo) (backupItem, error) {
@@ -91,4 +116,18 @@ func parseBackupName(backupPath string) (time.Time, string, error) {
 	}
 
 	return createdAt, backupType, err
+}
+
+type byCreatedAt []backupItem
+
+func (sorter byCreatedAt) Len() int {
+	return len(sorter)
+}
+
+func (sorter byCreatedAt) Swap(i, j int) {
+	sorter[i], sorter[j] = sorter[j], sorter[i]
+}
+
+func (sorter byCreatedAt) Less(i, j int) bool {
+	return sorter[i].CreatedAt.Unix() > sorter[j].CreatedAt.Unix()
 }
