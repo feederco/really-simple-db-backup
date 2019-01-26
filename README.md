@@ -20,7 +20,7 @@ scp build/really-simple-db-backup my-db-host:/usr/bin/really-simple-db-backup
 ### Available commands
 
 ```shell
-really-simple-db-backup perform|perform-full|perform-incremental|upload|test-alert
+really-simple-db-backup perform|perform-full|perform-incremental|upload|test-alert|list-backups
 ```
 
 ### Perform backup
@@ -64,6 +64,26 @@ To make sure the Slack integration is setup correctly you can use the `test-aler
 
 ```shell
 really-simple-db-backup test-alert
+```
+
+### Listing existing backups
+
+To list all backups for the current host you can run the `list-backups` command. This is also a good way to test that your access tokens for cloud storage is correct.
+
+```shell
+really-simple-db-backup list-backups
+```
+
+You can also run this on another host to check the backups of a specific host:
+
+```shell
+really-simple-db-backup list-backups -hostname my-other-host
+```
+
+To see if there are any backups since a certain timestamp simply pass in the timestamp (as formatted in the backup filenames: `YYYYMMDDHHII`)
+
+```shell
+really-simple-db-backup list-backups -timestamp 201901050000
 ```
 
 ## Configuration
