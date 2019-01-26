@@ -36,6 +36,7 @@ func Begin(cliArgs []string) {
 	uploadFileFlag := flag.String("upload-file", "", "[upload] File to upload to bucket")
 	existingVolumeIDFlag := flag.String("existing-volume-id", "", "Existing volume ID")
 	hostnameFlag := flag.String("hostname", "", "Hostname of backups to list")
+	timestampFlag := flag.String("timestamp", "", "List backups since timestamp. Should be in format YYYYMMDDHHII")
 	verboseFlag := flag.Bool("v", false, "Verbose logging")
 
 	pkg.VerboseMode = *verboseFlag
@@ -100,6 +101,17 @@ func Begin(cliArgs []string) {
 
 		if err != nil {
 			pkg.ErrorLog.Fatalln("Could not list backups:", err)
+		}
+
+		if *timestampFlag != "" {
+			var sinceTimestamp time.Time
+			sinceTimestamp, err = parseBackupTimestamp(*timestampFlag)
+			if err != nil {
+				pkg.ErrorLog.Fatalln("Incorrect timestamp past in:", err)
+			}
+
+			pkg.Log.Printf("Listing backups since %s\n", sinceTimestamp.Format(time.RFC3339))
+			backups = findRelevantBackupsUpTo(sinceTimestamp, backups)
 		}
 
 		for index, backup := range backups {

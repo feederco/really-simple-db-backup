@@ -55,18 +55,30 @@ func findRelevantBackupsUpTo(sinceTimestamp time.Time, allBackups []backupItem) 
 		return nil
 	}
 
+	sort.Sort(byCreatedAt(allBackups))
+
 	backups := make([]backupItem, 0)
-	for i := len(allBackups) - 1; i >= 0; i-- {
-		backup := allBackups[i]
+	// for i := len(allBackups) - 1; i >= 0; i-- {
+	// backup := allBackups[i]
+	for _, backup := range allBackups {
 		if backup.CreatedAt.Unix() > sinceTimestamp.Unix() {
 			continue
 		}
 
 		backups = append(backups, backup)
 
-		if backup.BackupType == "full" {
+		if backup.BackupType == backupTypeFull {
 			break
 		}
+	}
+
+	if len(backups) == 0 {
+		return nil
+	}
+
+	// Only found incremental backups, return nothing because we don't have anything to go on
+	if backups[len(backups)-1].BackupType != backupTypeFull {
+		return nil
 	}
 
 	return backups
@@ -75,7 +87,7 @@ func findRelevantBackupsUpTo(sinceTimestamp time.Time, allBackups []backupItem) 
 func newBackupItemFromMinioObject(minioObject minio.ObjectInfo) (backupItem, error) {
 	createdAt, backupType, err := parseBackupName(minioObject.Key)
 	if err != nil {
-		return backupItem{}, nil
+		return backupItem{}, err
 	}
 
 	return backupItem{
@@ -103,12 +115,12 @@ func parseBackupName(backupPath string) (time.Time, string, error) {
 
 	if err == nil {
 		timestampString := strings.Replace(pieces[0], "mysql-backup-", "", 1)
-		createdAt, err = time.Parse("200601021504", timestampString)
+		createdAt, err = parseBackupTimestamp(timestampString)
 	}
 
 	if err == nil {
 		backupTypePiece := pieces[1]
-		if backupTypePiece != "full" && backupTypePiece != "incremental" {
+		if backupTypePiece != backupTypeFull && backupTypePiece != backupTypeIncremental {
 			err = errors.New("Incorrect backup type: " + backupTypePiece)
 		} else {
 			backupType = backupTypePiece
@@ -116,6 +128,10 @@ func parseBackupName(backupPath string) (time.Time, string, error) {
 	}
 
 	return createdAt, backupType, err
+}
+
+func parseBackupTimestamp(timestamp string) (time.Time, error) {
+	return time.Parse("200601021504", timestamp)
 }
 
 type byCreatedAt []backupItem
