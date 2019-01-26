@@ -34,7 +34,14 @@ func backupMysqlPerform(backupType string, backupsBucket string, mysqlDataPath s
 	}
 
 	if backupType == backupTypeDecide {
-		backupType, err = backupDecide(configStruct.Retention, checkpointFilePath, "", "", minioClient)
+		hostname, _ := os.Hostname()
+		backupType, err = backupDecide(
+			configStruct.Retention,
+			checkpointFilePath,
+			hostname,
+			backupsBucket,
+			minioClient,
+		)
 		if err != nil {
 			pkg.AlertError(configStruct.Alerting, "Could not decide backup type", err)
 		}
