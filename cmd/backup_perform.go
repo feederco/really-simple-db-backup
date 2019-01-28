@@ -2,15 +2,17 @@ package cmd
 
 import (
 	"errors"
+	"fmt"
 	"path"
+	"time"
 
 	"github.com/feederco/really-simple-db-backup/pkg"
+	minio "github.com/minio/minio-go"
 
 	"os"
 	"os/exec"
 
 	"github.com/digitalocean/godo"
-	"github.com/minio/minio-go"
 )
 
 func backupMysqlPerform(backupType string, backupsBucket string, mysqlDataPath string, existingVolumeID string, persistentStorageDirectory string, digitalOceanClient *pkg.DigitalOceanClient, minioClient *minio.Client) error {
@@ -33,8 +35,9 @@ func backupMysqlPerform(backupType string, backupsBucket string, mysqlDataPath s
 		return err
 	}
 
+	hostname, _ := os.Hostname()
+
 	if backupType == backupTypeDecide {
-		hostname, _ := os.Hostname()
 		backupType, err = backupDecide(
 			configStruct.Retention,
 			checkpointFilePath,
@@ -159,6 +162,21 @@ func backupMysqlPerform(backupType string, backupsBucket string, mysqlDataPath s
 	if err != nil {
 		pkg.AlertError(configStruct.Alerting, "Could not upload backup to directory. Leaving it as is!", err)
 		return err
+	}
+
+	// Success! Now we can consider removing old backups
+	if backupType == backupTypeFull {
+		allBackups, backupErr := listAllBackups(hostname, backupsBucket, minioClient)
+		if backupErr != nil {
+			pkg.AlertError(configStruct.Alerting, "Backup completed, but could not perform pruning. Failed on listing backups.", err)
+		} else {
+			backupsToDelete := findBackupsThatCanBeDeleted(allBackups, time.Now(), configStruct.Retention)
+			deletedBackups, backupErr := removeBackups(backupsToDelete, backupsBucket, minioClient)
+
+			if backupErr != nil {
+				pkg.AlertError(configStruct.Alerting, fmt.Sprintf("Backup completed, but could not delete backups pruning. Failed on deleting. Was able delete %d %s before failure.", len(deletedBackups), pluralize(len(deletedBackups), "backup", "backups")), err)
+			}
+		}
 	}
 
 	return backupCleanup(volume, mountDirectory, digitalOceanClient)

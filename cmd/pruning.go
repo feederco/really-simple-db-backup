@@ -7,10 +7,6 @@ import (
 	minio "github.com/minio/minio-go"
 )
 
-func backupPrune(retentionConfig *RetentionConfig, hostname string, bucketName string, minioClient *minio.Client) error {
-	return nil
-}
-
 func removeBackups(backups []backupItem, bucketName string, minioClient *minio.Client) ([]backupItem, error) {
 	removedBackups := make([]backupItem, 0)
 	for _, backup := range backups {
