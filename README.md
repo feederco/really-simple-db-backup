@@ -8,6 +8,17 @@ Currently this project is built to perform backups of MySQL 8.0 and store them o
 
 ## Usage
 
+### Download release
+
+Latest release can be found on [releases page](https://github.com/feederco/really-simple-db-backup/releases).
+
+```
+ssh your-server
+wget https://github.com/feederco/really-simple-db-backup/releases/download/$VERSION/really-simple-db-backup_$VERSION_$PLATFORM_$ARCH.tar.gz -o really-simple-db-backup.tar.gz
+tar xvf really-simple-db-backup.tar.gz 
+sudo mv /usr/bin/really-simple-db-backup
+```
+
 ### Build & upload binary
 
 ```
