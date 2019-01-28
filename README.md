@@ -16,7 +16,7 @@ Latest release can be found on [releases page](https://github.com/feederco/reall
 ssh your-server
 wget https://github.com/feederco/really-simple-db-backup/releases/download/$VERSION/really-simple-db-backup_$VERSION_$PLATFORM_$ARCH.tar.gz -o really-simple-db-backup.tar.gz
 tar xvf really-simple-db-backup.tar.gz 
-sudo mv /usr/bin/really-simple-db-backup
+sudo mv really-simple-db-backup /usr/bin/really-simple-db-backup
 ```
 
 ### Build & upload binary
