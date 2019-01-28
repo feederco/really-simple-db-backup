@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 )
@@ -107,6 +108,67 @@ func TestListingBackupsSince(t *testing.T) {
 
 	if len(backups) != 0 {
 		t.Error("Found incorrect backups. Expected nothing")
+	}
+}
+
+func TestComputingLineages(t *testing.T) {
+	allBackups := []backupItem{
+		buildBackup(0, "prod-test-db1/mysql-backup-201901281617.full.xbstream", 126),
+		buildBackup(0, "prod-test-db1/mysql-backup-201901232039.incremental.xbstream", 4),
+		buildBackup(0, "prod-test-db1/mysql-backup-201901231002.incremental.xbstream", 6),
+		buildBackup(0, "prod-test-db1/mysql-backup-201901220907.incremental.xbstream", 5),
+		buildBackup(0, "prod-test-db1/mysql-backup-201901211952.full.xbstream", 119),
+	}
+
+	results := []int64{
+		1,
+		2,
+		2,
+		2,
+		2,
+	}
+
+	allBackups = addLineagesToBackups(allBackups)
+
+	for index, backup := range allBackups {
+		if backup.LineageID != results[index] {
+			t.Errorf("Incorrect result for index #%d, expected %d got %d", index, results[index], backup.LineageID)
+		}
+	}
+}
+
+func TestFailingBackupScenario(t *testing.T) {
+	allBackups := []backupItem{
+		buildBackup(0, "prod-test-db1/mysql-backup-201901281617.full.xbstream", 126),
+		buildBackup(0, "prod-test-db1/mysql-backup-201901232039.incremental.xbstream", 4),
+		buildBackup(0, "prod-test-db1/mysql-backup-201901231002.incremental.xbstream", 6),
+		buildBackup(0, "prod-test-db1/mysql-backup-201901220907.incremental.xbstream", 5),
+		buildBackup(0, "prod-test-db1/mysql-backup-201901211952.full.xbstream", 119),
+	}
+
+	allBackups = addLineagesToBackups(allBackups)
+
+	fmt.Println("The failing one")
+	// Test in the middle of the history
+	sinceTimestamp, _ := parseBackupTimestamp("201901281617")
+	backups := findBackupsThatCanBeDeleted(allBackups, sinceTimestamp, &RetentionConfig{
+		RetentionInDays: 4,
+	})
+
+	if len(backups) != 4 {
+		t.Error("Found incorrect backups", len(backups))
+	}
+	if backups[0].Size != 4 {
+		t.Errorf("Wrong backup 0, found: %d", backups[0].Size)
+	}
+	if backups[1].Size != 6 {
+		t.Errorf("Wrong backup 1, found: %d", backups[1].Size)
+	}
+	if backups[2].Size != 5 {
+		t.Errorf("Wrong backup 2, found: %d", backups[2].Size)
+	}
+	if backups[3].Size != 119 {
+		t.Errorf("Wrong backup 3, found: %d", backups[3].Size)
 	}
 }
 

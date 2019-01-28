@@ -40,18 +40,22 @@ func listAllBackups(hostname string, doSpaceName string, minioClient *minio.Clie
 
 	sort.Sort(byCreatedAt(backupItems))
 
+	return addLineagesToBackups(backupItems), nil
+}
+
+func addLineagesToBackups(backupItems []backupItem) []backupItem {
 	lineageID := int64(1)
-	for _, backupItem := range backupItems {
+	res := make([]backupItem, len(backupItems))
+	for index, backupItem := range backupItems {
 		if backupItem.BackupType == backupTypeFull {
 			backupItem.LineageID = lineageID
 			lineageID++
 		} else {
 			backupItem.LineageID = lineageID
 		}
-
+		res[index] = backupItem
 	}
-
-	return backupItems, nil
+	return res
 }
 
 func findRelevantBackupsUpTo(sinceTimestamp time.Time, allBackups []backupItem) []backupItem {
