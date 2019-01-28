@@ -1,9 +1,10 @@
 package cmd
 
 import (
+	"sort"
 	"time"
 
-	"github.com/minio/minio-go"
+	minio "github.com/minio/minio-go"
 )
 
 func backupPrune(retentionConfig *RetentionConfig, hostname string, bucketName string, minioClient *minio.Client) error {
@@ -22,16 +23,42 @@ func removeBackups(backups []backupItem, bucketName string, minioClient *minio.C
 	return removedBackups, nil
 }
 
-func findBackupsThatCanBeDeleted(retentionConfig *RetentionConfig, hostname string, bucketName string, minioClient *minio.Client) ([]backupItem, error) {
-	if retentionConfig.RetentionInDays <= 0 {
-		return nil, nil
+func findBackupsThatCanBeDeleted(allBackups []backupItem, nowTime time.Time, retentionConfig *RetentionConfig) []backupItem {
+	if retentionConfig.RetentionInDays <= 0 && retentionConfig.RetentionInHours <= 0 {
+		return nil
 	}
 
-	allBackups, err := listAllBackups(hostname, bucketName, minioClient)
-	if err != nil {
-		return nil, err
+	sort.Sort(byCreatedAt(allBackups))
+
+	// Find cut-off timestamp
+	addDuration := time.Duration(retentionConfig.RetentionInHours) * time.Hour
+	if retentionConfig.RetentionInDays > 0 {
+		addDuration = time.Duration(retentionConfig.RetentionInDays) * (time.Hour * 24)
 	}
 
-	lastTimestamp := time.Now().Add(-time.Duration(retentionConfig.RetentionInDays) * (time.Hour * 24))
-	return findRelevantBackupsUpTo(lastTimestamp, allBackups), nil
+	lastTimestamp := nowTime.Add(-addDuration)
+
+	// Build a map of lineages. A lineage is only deleted if all backups are outside of the range
+	// If you delete at the end of the lineage all subsequent increment backups fail
+	lineages := make(map[int64][]backupItem)
+	for _, backupItem := range allBackups {
+		lineages[backupItem.LineageID] = append(lineages[backupItem.LineageID], backupItem)
+	}
+
+	oldBackups := make([]backupItem, 0)
+
+	for _, backupItems := range lineages {
+		allStale := true
+		for _, backup := range backupItems {
+			if backup.CreatedAt.After(lastTimestamp) {
+				allStale = false
+			}
+		}
+
+		if allStale {
+			oldBackups = append(oldBackups, backupItems...)
+		}
+	}
+
+	return oldBackups
 }

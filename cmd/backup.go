@@ -95,22 +95,33 @@ func Begin(cliArgs []string) {
 
 		err = backupMysqlUpload(*uploadFileFlag, configStruct.DOSpaceName, minioClient)
 	case "prune":
-		// err = backupPrune(configStruct.Retention, hostname, configStruct.DOSpaceName, minioClient)
-		var backupsToDelete []backupItem
-		backupsToDelete, err = findBackupsThatCanBeDeleted(configStruct.Retention, hostname, configStruct.DOSpaceName, minioClient)
+		if configStruct.Retention == nil {
+			pkg.Log.Println("No retention config. Nothing to do. Exiting")
+			return
+		}
+
+		var allBackups []backupItem
+		allBackups, err = listAllBackups(hostname, configStruct.DOSpaceName, minioClient)
 		if err != nil {
 			pkg.ErrorLog.Fatalln("Could not list backups to remove:", err)
 		}
 
+		backupsToDelete := findBackupsThatCanBeDeleted(allBackups, time.Now(), configStruct.Retention)
+
 		if len(backupsToDelete) > 0 {
-			reader := bufio.NewReader(os.Stdin)
+			fmt.Println("")
+
+			for index, backup := range backupsToDelete {
+				fmt.Printf("#%d: %s (%.3f GB) (%.1f days old)\n", index+1, backup.Path, float64(backup.Size)/1000/1000/1000, time.Now().Sub(backup.CreatedAt).Truncate(time.Hour).Hours()/24)
+			}
 
 			fmt.Printf(
-				"Delete %d %s backups forever: (yes or y to accept)\n",
+				"\nDelete %d %s backups forever: (yes or y to accept)\n",
 				len(backupsToDelete),
 				pluralize(len(backupsToDelete), "backup", "backups"),
 			)
 
+			reader := bufio.NewReader(os.Stdin)
 			agreement, _ := reader.ReadString('\n')
 			agreement = strings.ToLower(agreement)
 
@@ -120,12 +131,14 @@ func Begin(cliArgs []string) {
 				if err != nil {
 					errString := ""
 					if len(actuallyRemovedBackups) > 0 {
-						errString = fmt.Sprintf("HOWEVER. %d %s deleted!", pluralize(len(actuallyRemovedBackups)), "backup was", "backups were"))
+						errString = fmt.Sprintf("HOWEVER. %d %s deleted!", len(actuallyRemovedBackups), pluralize(len(actuallyRemovedBackups), "backup was", "backups were"))
 					}
 					pkg.ErrorLog.Fatalf("An error occurred when trying to delete backups. %s\n\nError: %s\n", errString, err)
 				}
 
-				log.Printf("Complete!\nDeleted %d %s", len(actuallyRemovedBackups), pluralize(len(actuallyRemovedBackups)), "backup was", "backups were"))
+				log.Printf("Complete!\nDeleted %d %s", len(actuallyRemovedBackups), pluralize(len(actuallyRemovedBackups), "backup was", "backups were"))
+			} else {
+				log.Println("Everything left as-is.")
 			}
 		}
 	case "test-alert":

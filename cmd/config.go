@@ -27,6 +27,7 @@ type ConfigStruct struct {
 type RetentionConfig struct {
 	AutomaticallyRemoveOld  bool `json:"automatically_remove_old"`
 	RetentionInDays         int  `json:"retention_in_days"`
+	RetentionInHours        int  `json:"retention_in_hours"`
 	HoursBetweenFullBackups int  `json:"hours_between_full_backups"`
 }
 
