@@ -165,7 +165,7 @@ func backupMysqlPerform(backupType string, backupsBucket string, mysqlDataPath s
 	}
 
 	// Success! Now we can consider removing old backups
-	if backupType == backupTypeFull {
+	if backupType == backupTypeFull && configStruct.Retention != nil && configStruct.Retention.AutomaticallyRemoveOld {
 		allBackups, backupErr := listAllBackups(hostname, backupsBucket, minioClient)
 		if backupErr != nil {
 			pkg.AlertError(configStruct.Alerting, "Backup completed, but could not perform pruning. Failed on listing backups.", err)
