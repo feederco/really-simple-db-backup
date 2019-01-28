@@ -2,6 +2,12 @@ package cmd
 
 func backupMysqlPerformRestore() error {
 	var err error
+
+	err = prerequisites(configStruct.PersistentStorage)
+	if err != nil {
+		return err
+	}
+
 	err = backupPrerequisites()
 	if err != nil {
 		return err

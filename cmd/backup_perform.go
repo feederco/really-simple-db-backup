@@ -16,6 +16,11 @@ import (
 func backupMysqlPerform(backupType string, backupsBucket string, mysqlDataPath string, existingVolumeID string, persistentStorageDirectory string, digitalOceanClient *pkg.DigitalOceanClient, minioClient *minio.Client) error {
 	var err error
 
+	err = prerequisites(configStruct.PersistentStorage)
+	if err != nil {
+		pkg.ErrorLog.Fatalln("Failed prerequisite tests", err)
+	}
+
 	if backupType != backupTypeFull && backupType != backupTypeIncremental && backupType != backupTypeDecide {
 		return errors.New("Invalid backupType: " + backupType)
 	}
@@ -29,11 +34,16 @@ func backupMysqlPerform(backupType string, backupsBucket string, mysqlDataPath s
 	}
 
 	if backupType == backupTypeDecide {
-		lastLsn, lastLsnErr := getLastLSNFromFile(checkpointFilePath)
-		if lastLsnErr == nil && len(lastLsn) > 0 {
-			backupType = backupTypeIncremental
-		} else {
-			backupType = backupTypeFull
+		hostname, _ := os.Hostname()
+		backupType, err = backupDecide(
+			configStruct.Retention,
+			checkpointFilePath,
+			hostname,
+			backupsBucket,
+			minioClient,
+		)
+		if err != nil {
+			pkg.AlertError(configStruct.Alerting, "Could not decide backup type", err)
 		}
 
 		pkg.Log.Printf("Decided on backup type: %s\n", backupType)

@@ -29,12 +29,14 @@ func Begin(cliArgs []string) {
 	args := cliArgs[1:]
 
 	if len(args) == 0 {
-		pkg.ErrorLog.Printf("Usage:\n%s perform|perform-full|perform-incremental|restore|upload|test-alert [flags]\n\n", os.Args[0])
+		pkg.ErrorLog.Printf("Usage:\n%s perform|perform-full|perform-incremental|restore|upload|test-alert|list-backups [flags]\n\n", os.Args[0])
 		os.Exit(1)
 	}
 
 	uploadFileFlag := flag.String("upload-file", "", "[upload] File to upload to bucket")
 	existingVolumeIDFlag := flag.String("existing-volume-id", "", "Existing volume ID")
+	hostnameFlag := flag.String("hostname", "", "Hostname of backups to list")
+	timestampFlag := flag.String("timestamp", "", "List backups since timestamp. Should be in format YYYYMMDDHHII")
 	verboseFlag := flag.Bool("v", false, "Verbose logging")
 
 	pkg.VerboseMode = *verboseFlag
@@ -58,11 +60,6 @@ func Begin(cliArgs []string) {
 	}
 
 	var err error
-
-	err = prerequisites(configStruct.PersistentStorage)
-	if err != nil {
-		pkg.ErrorLog.Fatalln("Failed prerequisite tests", err)
-	}
 
 	digitalOceanClient := pkg.NewDigitalOceanClient(configStruct.DOKey)
 	minioClient, err := minio.New(configStruct.DOSpaceEndpoint, configStruct.DOSpaceKey, configStruct.DOSpaceSecret, true)
@@ -91,6 +88,35 @@ func Begin(cliArgs []string) {
 		err = backupMysqlUpload(*uploadFileFlag, configStruct.DOSpaceName, minioClient)
 	case "test-alert":
 		pkg.AlertError(configStruct.Alerting, "This is a test alert. Please ignore.", errors.New("Test error"))
+	case "list-backups":
+		hostname, _ := os.Hostname()
+		if *hostnameFlag != "" {
+			hostname = *hostnameFlag
+		}
+
+		pkg.Log.Printf("Loading backups for %s\n", hostname)
+
+		var backups []backupItem
+		backups, err = listAllBackups(hostname, configStruct.DOSpaceName, minioClient)
+
+		if err != nil {
+			pkg.ErrorLog.Fatalln("Could not list backups:", err)
+		}
+
+		if *timestampFlag != "" {
+			var sinceTimestamp time.Time
+			sinceTimestamp, err = parseBackupTimestamp(*timestampFlag)
+			if err != nil {
+				pkg.ErrorLog.Fatalln("Incorrect timestamp past in:", err)
+			}
+
+			pkg.Log.Printf("Listing backups since %s\n", sinceTimestamp.Format(time.RFC3339))
+			backups = findRelevantBackupsUpTo(sinceTimestamp, backups)
+		}
+
+		for index, backup := range backups {
+			pkg.Log.Printf("%d:\t%s (created at %s)", index, backup.Path, backup.CreatedAt)
+		}
 	default:
 		pkg.ErrorLog.Println("Unknown backup command:", args[0])
 	}
