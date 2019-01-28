@@ -17,10 +17,32 @@ GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o build/really-simple-db-backup 
 scp build/really-simple-db-backup my-db-host:/usr/bin/really-simple-db-backup
 ```
 
+### Setup Cronjob
+
+```shell
+crontab -e
+```
+
+And add the following:
+
+#### For daily backups
+
+Set to run 05:00 AM every day.
+
+```
+0 5 * * * /usr/bin/really-simple-db-backup perform
+```
+
+#### For hourly backups
+
+```
+1 * * * * /usr/bin/really-simple-db-backup perform
+```
+
 ### Available commands
 
 ```shell
-really-simple-db-backup perform|perform-full|perform-incremental|upload|test-alert|list-backups
+really-simple-db-backup perform|perform-full|perform-incremental|upload|prune|test-alert|list-backups
 ```
 
 ### Perform backup
@@ -56,6 +78,22 @@ If for some reason a backup failed and you were successfully able to retrieve a 
 
 ```shell
 really-simple-db-backup upload -file /path/to/backup.xbstream
+```
+
+### Remove old backups
+
+If the config-option `retention.automatically_remove_old` is set to `true`, an automatic prune will be run on each full backup. Backup lineages older than `retention.retention_in_days` (or `retention.retention_in_hours`).
+
+To force a prune the `prune` command can be run:
+
+```
+really-simple-db-backup prune
+```
+
+To prune on another host the `-hostname` flag can be passed in:
+
+```
+really-simple-db-backup prune -hostname other-host
 ```
 
 ### Test alert
@@ -111,9 +149,34 @@ The following format is expected:
     "slack": {
       "webhook_url": "https://hooks.slack.com/services/<your-webhook-url>"
     }
+  },
+  "retention": {
+    "automatically_remove_old": true,
+    "retention_in_days": 7,
+    "hours_between_full_backups": 24
   }
 }
 ```
+
+#### `retention`
+
+If the `retention` option is left empty (or `null`) no pruning is done.
+
+#### `automatically_remove_old`
+
+Set this to `true` for the pruning to be run on each full backup. If it is set to `false` (or not set at all) you need to manually run `really-simple-db-backup prune` to remove old backups.
+
+#### `retention_in_days`
+
+Set to the number of days a backup is kept before being considered for removal.
+
+#### `retention_in_hours`
+
+If you want more fine-grained control of how old backups are kept, use the `retention_in_hours` option instead. If any of the above values are set to `0` (or not included in the config JSON), the other value is used.
+
+#### `hours_between_full_backups`
+
+Set to number of hours between full backups. Note: This does perform the actually scheduling of this command. You need to do that separately in a cronjob or similar. See the section
 
 ### Different MySQL data directory
 
