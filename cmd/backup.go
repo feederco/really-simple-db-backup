@@ -1,16 +1,19 @@
 package cmd
 
 import (
+	"bufio"
 	"errors"
 	"flag"
+	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/feederco/really-simple-db-backup/pkg"
 
 	"github.com/digitalocean/godo"
-	"github.com/minio/minio-go"
+	minio "github.com/minio/minio-go"
 )
 
 const fileSystemForVolume = "ext4"
@@ -29,7 +32,7 @@ func Begin(cliArgs []string) {
 	args := cliArgs[1:]
 
 	if len(args) == 0 {
-		pkg.ErrorLog.Printf("Usage:\n%s perform|perform-full|perform-incremental|restore|upload|test-alert|list-backups [flags]\n\n", os.Args[0])
+		pkg.ErrorLog.Printf("Usage:\n%s perform|perform-full|perform-incremental|restore|upload|test-alert|list-backups|prune [flags]\n\n", os.Args[0])
 		os.Exit(1)
 	}
 
@@ -71,6 +74,11 @@ func Begin(cliArgs []string) {
 	pkg.Log.Println("Backup started", time.Now().Format(time.RFC3339))
 	defer pkg.Log.Println("Backup ended", time.Now().Format(time.RFC3339))
 
+	hostname, _ := os.Hostname()
+	if *hostnameFlag != "" {
+		hostname = *hostnameFlag
+	}
+
 	switch args[0] {
 	case "perform":
 		err = backupMysqlPerform(backupTypeDecide, configStruct.DOSpaceName, configStruct.MysqlDataPath, *existingVolumeIDFlag, configStruct.PersistentStorage, digitalOceanClient, minioClient)
@@ -86,14 +94,56 @@ func Begin(cliArgs []string) {
 		}
 
 		err = backupMysqlUpload(*uploadFileFlag, configStruct.DOSpaceName, minioClient)
+	case "prune":
+		if configStruct.Retention == nil {
+			pkg.Log.Println("No retention config. Nothing to do. Exiting")
+			return
+		}
+
+		var allBackups []backupItem
+		allBackups, err = listAllBackups(hostname, configStruct.DOSpaceName, minioClient)
+		if err != nil {
+			pkg.ErrorLog.Fatalln("Could not list backups to remove:", err)
+		}
+
+		backupsToDelete := findBackupsThatCanBeDeleted(allBackups, time.Now(), configStruct.Retention)
+
+		if len(backupsToDelete) > 0 {
+			fmt.Println("")
+
+			for index, backup := range backupsToDelete {
+				fmt.Printf("#%d: %s (%.3f GB) (%.1f days old)\n", index+1, backup.Path, float64(backup.Size)/1000/1000/1000, time.Now().Sub(backup.CreatedAt).Truncate(time.Hour).Hours()/24)
+			}
+
+			fmt.Printf(
+				"\nDelete %d %s backups forever: (yes or y to accept)\n",
+				len(backupsToDelete),
+				pluralize(len(backupsToDelete), "backup", "backups"),
+			)
+
+			reader := bufio.NewReader(os.Stdin)
+			agreement, _ := reader.ReadString('\n')
+			agreement = strings.ToLower(agreement)
+
+			if agreement == "yes" || agreement == "y" {
+				var actuallyRemovedBackups []backupItem
+				actuallyRemovedBackups, err = removeBackups(backupsToDelete, configStruct.DOSpaceName, minioClient)
+				if err != nil {
+					errString := ""
+					if len(actuallyRemovedBackups) > 0 {
+						errString = fmt.Sprintf("HOWEVER. %d %s deleted!", len(actuallyRemovedBackups), pluralize(len(actuallyRemovedBackups), "backup was", "backups were"))
+					}
+					pkg.ErrorLog.Fatalf("An error occurred when trying to delete backups. %s\n\nError: %s\n", errString, err)
+				}
+
+				log.Printf("Complete!\nDeleted %d %s", len(actuallyRemovedBackups), pluralize(len(actuallyRemovedBackups), "backup was", "backups were"))
+			} else {
+				log.Println("Everything left as-is.")
+			}
+		}
 	case "test-alert":
 		pkg.AlertError(configStruct.Alerting, "This is a test alert. Please ignore.", errors.New("Test error"))
 	case "list-backups":
-		hostname, _ := os.Hostname()
-		if *hostnameFlag != "" {
-			hostname = *hostnameFlag
-		}
-
 		pkg.Log.Printf("Loading backups for %s\n", hostname)
 
 		var backups []backupItem
@@ -123,6 +173,14 @@ func Begin(cliArgs []string) {
 
 	if err != nil {
 		pkg.ErrorLog.Printf("Error running `%s`\n\n\t%v\n\n", args[0], err)
+	}
+}
+
+func pluralize(count int, singular string, plural string) string {
+	if count == 1 {
+		return singular
+	} else {
+		return plural
 	}
 }
 

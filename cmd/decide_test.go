@@ -12,8 +12,8 @@ func TestDeciding(t *testing.T) {
 	}
 
 	allBackups := []backupItem{
-		buildBackup("a/mysql-backup-201901011000.full.xbstream", 100),
-		buildBackup("a/mysql-backup-201901021000.incremental.xbstream", 1),
+		buildBackup(1, "a/mysql-backup-201901011000.full.xbstream", 100),
+		buildBackup(1, "a/mysql-backup-201901021000.incremental.xbstream", 1),
 	}
 
 	// 3 days after last full

@@ -50,16 +50,16 @@ func TestParseFileName(t *testing.T) {
 
 func TestListingBackupsSince(t *testing.T) {
 	allBackups := []backupItem{
-		buildBackup("a/mysql-backup-201812311000.incremental.xbstream", 0),
-		buildBackup("a/mysql-backup-201901011000.full.xbstream", 100),
-		buildBackup("a/mysql-backup-201901021000.incremental.xbstream", 1),
-		buildBackup("a/mysql-backup-201901031000.incremental.xbstream", 2),
-		buildBackup("a/mysql-backup-201901041000.incremental.xbstream", 3),
-		buildBackup("a/mysql-backup-201901051000.full.xbstream", 110),
-		buildBackup("a/mysql-backup-201901061000.incremental.xbstream", 4),
-		buildBackup("a/mysql-backup-201901071000.incremental.xbstream", 5),
-		buildBackup("a/mysql-backup-201901081000.full.xbstream", 120),
-		buildBackup("a/mysql-backup-201901091000.incremental.xbstream", 6),
+		buildBackup(1, "a/mysql-backup-201812311000.incremental.xbstream", 0),
+		buildBackup(2, "a/mysql-backup-201901011000.full.xbstream", 100),
+		buildBackup(2, "a/mysql-backup-201901021000.incremental.xbstream", 1),
+		buildBackup(2, "a/mysql-backup-201901031000.incremental.xbstream", 2),
+		buildBackup(2, "a/mysql-backup-201901041000.incremental.xbstream", 3),
+		buildBackup(3, "a/mysql-backup-201901051000.full.xbstream", 110),
+		buildBackup(3, "a/mysql-backup-201901061000.incremental.xbstream", 4),
+		buildBackup(3, "a/mysql-backup-201901071000.incremental.xbstream", 5),
+		buildBackup(4, "a/mysql-backup-201901081000.full.xbstream", 120),
+		buildBackup(4, "a/mysql-backup-201901091000.incremental.xbstream", 6),
 	}
 
 	// Test in the middle of the history
@@ -110,12 +110,14 @@ func TestListingBackupsSince(t *testing.T) {
 	}
 }
 
-func buildBackup(name string, size int64) backupItem {
+func buildBackup(lineageID int64, name string, size int64) backupItem {
 	createdAt, backupType, _ := parseBackupName(name)
 	return backupItem{
 		Path:       name,
 		Size:       size,
 		BackupType: backupType,
 		CreatedAt:  createdAt,
+
+		LineageID: lineageID,
 	}
 }

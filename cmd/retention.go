@@ -7,15 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/minio/minio-go"
+	minio "github.com/minio/minio-go"
 )
-
-type backupItem struct {
-	Path       string
-	Size       int64
-	BackupType string
-	CreatedAt  time.Time
-}
 
 func getLastFullBackup() (time.Time, error) {
 	return time.Now(), errors.New("WIP")
@@ -38,14 +31,25 @@ func listAllBackups(hostname string, doSpaceName string, minioClient *minio.Clie
 			return nil, item.Err
 		}
 
-		datum, err := newBackupItemFromMinioObject(item)
+		backupItem, err := newBackupItemFromMinioObject(item)
 		if err != nil {
 			continue
 		}
-		backupItems = append(backupItems, datum)
+		backupItems = append(backupItems, backupItem)
 	}
 
 	sort.Sort(byCreatedAt(backupItems))
+
+	lineageID := int64(1)
+	for _, backupItem := range backupItems {
+		if backupItem.BackupType == backupTypeFull {
+			backupItem.LineageID = lineageID
+			lineageID++
+		} else {
+			backupItem.LineageID = lineageID
+		}
+
+	}
 
 	return backupItems, nil
 }
@@ -58,8 +62,6 @@ func findRelevantBackupsUpTo(sinceTimestamp time.Time, allBackups []backupItem) 
 	sort.Sort(byCreatedAt(allBackups))
 
 	backups := make([]backupItem, 0)
-	// for i := len(allBackups) - 1; i >= 0; i-- {
-	// backup := allBackups[i]
 	for _, backup := range allBackups {
 		if backup.CreatedAt.Unix() > sinceTimestamp.Unix() {
 			continue
