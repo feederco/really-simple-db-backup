@@ -71,9 +71,6 @@ func Begin(cliArgs []string) {
 		pkg.ErrorLog.Fatalln("Could not construct minio client.", err)
 	}
 
-	pkg.Log.Println("Backup started", time.Now().Format(time.RFC3339))
-	defer pkg.Log.Println("Backup ended", time.Now().Format(time.RFC3339))
-
 	hostname, _ := os.Hostname()
 	if *hostnameFlag != "" {
 		hostname = *hostnameFlag
@@ -136,7 +133,8 @@ func Begin(cliArgs []string) {
 					pkg.ErrorLog.Fatalf("An error occurred when trying to delete backups. %s\n\nError: %s\n", errString, err)
 				}
 
-				log.Printf("Complete!\nDeleted %d %s", len(actuallyRemovedBackups), pluralize(len(actuallyRemovedBackups), "backup was", "backups were"))
+				log.Println("Complete!")
+				log.Printf("Deleted %d %s\n", len(actuallyRemovedBackups), pluralize(len(actuallyRemovedBackups), "backup was", "backups were"))
 			} else {
 				log.Println("Everything left as-is.")
 			}

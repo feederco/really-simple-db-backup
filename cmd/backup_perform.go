@@ -18,6 +18,9 @@ import (
 func backupMysqlPerform(backupType string, backupsBucket string, mysqlDataPath string, existingVolumeID string, persistentStorageDirectory string, digitalOceanClient *pkg.DigitalOceanClient, minioClient *minio.Client) error {
 	var err error
 
+	pkg.Log.Println("Backup started", time.Now().Format(time.RFC3339))
+	defer pkg.Log.Println("Backup ended", time.Now().Format(time.RFC3339))
+
 	err = prerequisites(configStruct.PersistentStorage)
 	if err != nil {
 		pkg.ErrorLog.Fatalln("Failed prerequisite tests", err)
