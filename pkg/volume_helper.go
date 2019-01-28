@@ -51,7 +51,8 @@ func MountVolume(volumeName string, volumeID string, dropletID int, digitalOcean
 	}
 
 	// Wait for system to settle
-	Log.Println("Mounted volume on host.\nWaiting for system to settle down.")
+	Log.Println("Mounted volume on host.")
+	Log.Println("Waiting for system to settle down.")
 	time.Sleep(30 * time.Second)
 
 	// Volume is now available in /dev/disk/by-id/scsi-0DO_Volume_$VOLUME_NAME
@@ -95,7 +96,7 @@ func UnmountVolume(mountPoint string, volumeID string, dropletID int, digitalOce
 	// - Remove mountpoint directory
 	err = os.Remove(mountPoint)
 	if err != nil {
-		Log.Println("Warning: Could not remove mount directory. Contiuing anyway.", err)
+		Log.Println("Warning: Could not remove mount directory. Continuing anyway.", err)
 	}
 
 	// - Detach volume

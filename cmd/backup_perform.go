@@ -78,7 +78,7 @@ func backupMysqlPerform(backupType string, backupsBucket string, mysqlDataPath s
 
 	// !! From this point onward we have created things that need to be cleaned up
 
-	pkg.Log.Println("Backups starting.")
+	pkg.Log.Println("Backups running.")
 
 	backupName := volume.Name + "." + backupType
 

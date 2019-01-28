@@ -44,7 +44,8 @@ func createAndMountVolumeForUse(volumePrefix string, sizeInGb int64, digitalOcea
 		}
 	}
 
-	pkg.Log.Printf("Volume %s created.\nVolume is being mounted.\n", volume.ID)
+	pkg.Log.Printf("Volume %s created.\n", volume.ID)
+	pkg.Log.Println("Volume is being mounted.")
 
 	// - Mount that volume
 	var mountDirectory string
