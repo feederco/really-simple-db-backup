@@ -61,7 +61,7 @@ func backupMysqlPerform(backupType string, backupsBucket string, mysqlDataPath s
 		return err
 	}
 
-	sizeInGigaBytes := sizeInBytes / (1 << (10 * 3))
+	sizeInGigaBytes := bytesToGigaBytes(sizeInBytes)
 	// aDecentSizeInGigaBytes := sizeInGigaBytes + (sizeInGigaBytes / 6)
 	aDecentSizeInGigaBytes := sizeInGigaBytes
 
@@ -183,4 +183,8 @@ func backupMysqlPerform(backupType string, backupsBucket string, mysqlDataPath s
 	}
 
 	return backupCleanup(volume, mountDirectory, digitalOceanClient)
+}
+
+func bytesToGigaBytes(bytes int64) int64 {
+	return bytes / (1 << (10 * 3))
 }

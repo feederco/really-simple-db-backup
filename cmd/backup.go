@@ -78,13 +78,50 @@ func Begin(cliArgs []string) {
 
 	switch args[0] {
 	case "perform":
-		err = backupMysqlPerform(backupTypeDecide, configStruct.DOSpaceName, configStruct.MysqlDataPath, *existingVolumeIDFlag, configStruct.PersistentStorage, digitalOceanClient, minioClient)
+		err = backupMysqlPerform(
+			backupTypeDecide,
+			configStruct.DOSpaceName,
+			configStruct.MysqlDataPath,
+			*existingVolumeIDFlag,
+			configStruct.PersistentStorage,
+			digitalOceanClient,
+			minioClient,
+		)
 	case "perform-full":
-		err = backupMysqlPerform(backupTypeFull, configStruct.DOSpaceName, configStruct.MysqlDataPath, *existingVolumeIDFlag, configStruct.PersistentStorage, digitalOceanClient, minioClient)
+		err = backupMysqlPerform(
+			backupTypeFull,
+			configStruct.DOSpaceName,
+			configStruct.MysqlDataPath,
+			*existingVolumeIDFlag,
+			configStruct.PersistentStorage,
+			digitalOceanClient,
+			minioClient,
+		)
 	case "perform-incremental":
-		err = backupMysqlPerform(backupTypeIncremental, configStruct.DOSpaceName, configStruct.MysqlDataPath, *existingVolumeIDFlag, configStruct.PersistentStorage, digitalOceanClient, minioClient)
+		err = backupMysqlPerform(
+			backupTypeIncremental,
+			configStruct.DOSpaceName,
+			configStruct.MysqlDataPath,
+			*existingVolumeIDFlag,
+			configStruct.PersistentStorage,
+			digitalOceanClient,
+			minioClient,
+		)
 	case "restore":
-		err = backupMysqlPerformRestore()
+		fromHostname := hostname
+		if *hostnameFlag != "" {
+			fromHostname = *hostnameFlag
+		}
+
+		err = backupMysqlPerformRestore(
+			fromHostname,
+			*timestampFlag,
+			configStruct.DOSpaceName,
+			configStruct.MysqlDataPath,
+			*existingVolumeIDFlag,
+			digitalOceanClient,
+			minioClient,
+		)
 	case "upload":
 		if *uploadFileFlag == "" {
 			pkg.ErrorLog.Fatalln("-upload-file parameter required for `upload` command.")
