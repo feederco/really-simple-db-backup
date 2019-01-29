@@ -72,6 +72,11 @@ func backupMysqlPerformRestore(fromHostname string, restoreTimestamp string, bac
 		existingBackupDirectory,
 	)
 
+	if err != nil {
+		pkg.ErrorLog.Println("Could not create mount volume.", err)
+		return nil
+	}
+
 	restoreDirectory := path.Join(mountDirectory, "really-simple-db-restore")
 	err = os.MkdirAll(restoreDirectory, 0755)
 	if err != nil {

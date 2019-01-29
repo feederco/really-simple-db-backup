@@ -27,7 +27,7 @@ func prerequisites(persistentStorageDirectory string) error {
 	dirInfo, err = os.Stat(persistentStorageDirectory)
 	if err != nil && os.IsNotExist(err) {
 		pkg.Log.Println("Persistent storage directory did not exist. Attempting to create", persistentStorageDirectory)
-		err = os.Mkdir(persistentStorageDirectory, 0755)
+		err = os.Mkdir(persistentStorageDirectory, 0700)
 		if err != nil {
 			pkg.ErrorLog.Fatalf("Could not create persistent storage directory at %s: %s", persistentStorageDirectory, err)
 		}

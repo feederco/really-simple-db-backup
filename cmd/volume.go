@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"path"
+	"strings"
 	"time"
 
 	"github.com/digitalocean/godo"
@@ -55,19 +57,23 @@ func createAndMountVolumeForUse(volumePrefix string, sizeInGb int64, digitalOcea
 	pkg.Log.Println("Volume is being mounted.")
 
 	// - Mount that volume
-	var mountDirectory string
-	mountDirectory, err = pkg.MountVolume(volume.Name, volume.ID, thisHost.DropletID, digitalOceanClient)
+	mountDirectory := path.Join("/mnt/", strings.Replace(volume.Name, "-", "_", -1))
+	pkg.Log.Println("Volume is being mounted.", volume.DropletIDs)
 
-	if err != nil {
-		pkg.AlertError(configStruct.Alerting, "Could not mount volume "+volume.ID, err)
-		return volume, mountDirectory, err
+	if len(volume.DropletIDs) == 0 || volume.DropletIDs[0] != thisHost.DropletID {
+		err = pkg.MountVolume(volume.Name, mountDirectory, volume.ID, thisHost.DropletID, digitalOceanClient)
+
+		if err != nil {
+			pkg.AlertError(configStruct.Alerting, "Could not mount volume "+volume.ID, err)
+			return volume, mountDirectory, err
+		}
+
+		if len(volume.DropletIDs) == 0 {
+			volume.DropletIDs = append(volume.DropletIDs, thisHost.DropletID)
+		}
+
+		pkg.Log.Printf("Volume %s mounted on this host under %s.\n", volume.ID, mountDirectory)
 	}
-
-	if len(volume.DropletIDs) == 0 {
-		volume.DropletIDs = append(volume.DropletIDs, thisHost.DropletID)
-	}
-
-	pkg.Log.Printf("Volume %s mounted on this host under %s.\n", volume.ID, mountDirectory)
 
 	return volume, mountDirectory, nil
 }

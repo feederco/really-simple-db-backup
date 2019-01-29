@@ -91,7 +91,7 @@ func backupMysqlPerform(backupType string, backupsBucket string, mysqlDataPath s
 
 	// - Start Percona XtraBackup
 	err = (func() error {
-		err = os.MkdirAll(backupDirectory, 0755)
+		err = os.MkdirAll(backupDirectory, 0700)
 		if err != nil {
 			pkg.AlertError(configStruct.Alerting, "Could not create backup directory.", err)
 			return err
