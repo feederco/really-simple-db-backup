@@ -59,7 +59,7 @@ func backupMysqlPerformRestore(fromHostname string, restoreTimestamp string, bac
 
 	// - Create & mount volume to house backup
 	sizeInGigaBytes := bytesToGigaBytes(totalSizeInBytes)
-	aDecentSizeInGigaBytes := sizeInGigaBytes * 5
+	aDecentSizeInGigaBytes := sizeInGigaBytes * 8
 
 	var volume *godo.Volume
 	var mountDirectory string
@@ -112,6 +112,11 @@ func backupMysqlPerformRestore(fromHostname string, restoreTimestamp string, bac
 	}
 
 	pkg.Log.Println("Prepare completed! Putting files back")
+	pkg.Log.Println("Warning: Removing everything in the MySQL data directory")
+
+	// We try to run this command. If it fails, we just run xtrabackup --copy-back anyway.
+	// It will error if the directory is not empty
+	pkg.PerformCommand("mv", mysqlDataPath, "/tmp/")
 
 	// - Move to MySQL data directory
 	_, err = pkg.PerformCommand("xtrabackup", "--copy-back", "--target-dir", restoreDirectory)
