@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -66,4 +67,30 @@ func PerformCommand(cmdArgs ...string) (string, error) {
 	}
 
 	return output, nil
+}
+
+// PerformCommandWithFileOutput performs a command with output to a file
+func PerformCommandWithFileOutput(outputFilename string, cmd string, cmdArgs ...string) error {
+	var err error
+	var outputFile *os.File
+	outputFile, err = os.Create(outputFilename)
+	if err != nil {
+		return err
+	}
+	defer outputFile.Close()
+
+	execCmd := exec.Command(cmd, cmdArgs...)
+	execCmd.Stdout = outputFile
+
+	err = execCmd.Start()
+	if err != nil {
+		return err
+	}
+
+	err = execCmd.Wait()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

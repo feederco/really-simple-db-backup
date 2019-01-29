@@ -7,7 +7,11 @@ import (
 	"github.com/feederco/really-simple-db-backup/pkg"
 )
 
-func createAndMountVolumeForUse(volumePrefix string, sizeInGb int64, digitalOceanClient *pkg.DigitalOceanClient, existingVolumeID string) (*godo.Volume, string, error) {
+func createAndMountVolumeForUse(volumePrefix string, sizeInGb int64, digitalOceanClient *pkg.DigitalOceanClient, existingVolumeID string, existingDirectory string) (*godo.Volume, string, error) {
+	if existingDirectory != "" {
+		return nil, existingDirectory, nil
+	}
+
 	// - Fetch myself
 	thisHost, err := pkg.GetRunningInstanceData()
 	if err != nil {
@@ -37,14 +41,17 @@ func createAndMountVolumeForUse(volumePrefix string, sizeInGb int64, digitalOcea
 		if err != nil {
 			return volume, "", err
 		}
+
+		pkg.Log.Printf("Volume %s created.\n", volume.ID)
 	} else {
 		volume, err = pkg.FindVolume(existingVolumeID, digitalOceanClient)
 		if err != nil {
 			return nil, "", err
 		}
+
+		pkg.Log.Printf("Volume %s details retrieved.\n", volume.ID)
 	}
 
-	pkg.Log.Printf("Volume %s created.\n", volume.ID)
 	pkg.Log.Println("Volume is being mounted.")
 
 	// - Mount that volume

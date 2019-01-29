@@ -3,6 +3,7 @@ package cmd
 import (
 	"errors"
 	"os"
+	"os/exec"
 	"path"
 	"runtime"
 	"strconv"
@@ -13,7 +14,7 @@ import (
 	minio "github.com/minio/minio-go"
 )
 
-func backupMysqlPerformRestore(fromHostname string, restoreTimestamp string, backupBucket string, mysqlDataPath string, existingVolumeID string, digitalOceanClient *pkg.DigitalOceanClient, minioClient *minio.Client) error {
+func backupMysqlPerformRestore(fromHostname string, restoreTimestamp string, backupBucket string, mysqlDataPath string, existingVolumeID string, existingBackupDirectory string, digitalOceanClient *pkg.DigitalOceanClient, minioClient *minio.Client) error {
 	var err error
 
 	err = prerequisites(configStruct.PersistentStorage)
@@ -34,6 +35,8 @@ func backupMysqlPerformRestore(fromHostname string, restoreTimestamp string, bac
 		}
 	}
 
+	pkg.Log.Println("Listing backups since", sinceTimestamp.Format(time.RFC3339))
+
 	// Game plan:
 
 	// - List all backups we need
@@ -46,6 +49,8 @@ func backupMysqlPerformRestore(fromHostname string, restoreTimestamp string, bac
 	if len(backupFiles) == 0 {
 		return errors.New("No backup found to restore from")
 	}
+
+	pkg.Log.Printf("%d backup files found\n", len(backupFiles))
 
 	totalSizeInBytes := int64(0)
 	for _, backupFile := range backupFiles {
@@ -64,38 +69,40 @@ func backupMysqlPerformRestore(fromHostname string, restoreTimestamp string, bac
 		aDecentSizeInGigaBytes,
 		digitalOceanClient,
 		existingVolumeID,
+		existingBackupDirectory,
 	)
 
 	restoreDirectory := path.Join(mountDirectory, "really-simple-db-restore")
-	err = os.Mkdir(restoreDirectory, 0755)
+	err = os.MkdirAll(restoreDirectory, 0755)
 	if err != nil {
 		pkg.ErrorLog.Println("Could not create directory to house backup files.")
 		return nil
 	}
 
+	pkg.Log.Println("Downloading backups")
+
 	// - Download full backup and incremental pieces
-	err = downloadBackups(backupFiles, restoreDirectory, backupBucket, minioClient)
+	var localFiles []string
+	localFiles, err = downloadBackups(backupFiles, restoreDirectory, backupBucket, minioClient)
 	if err != nil {
 		pkg.ErrorLog.Println("Could not download backups!")
 		return err
 	}
 
+	pkg.Log.Println("Download completed backups")
+	pkg.Log.Println("Decompressing backups")
+
 	numberOfCPUs := runtime.NumCPU()
 
-	// - Decompress files with as many cores as possible
-	_, err = pkg.PerformCommand(
-		"xtrabackup",
-		"--decompress",
-		"--target-dir",
-		restoreDirectory,
-		"--paralell",
-		strconv.FormatInt(int64(numberOfCPUs), 10),
-	)
-
-	if err != nil {
-		pkg.AlertError(configStruct.Alerting, "Could not create decompress backup.", err)
-		return err
+	for _, backupFile := range localFiles {
+		err = decompressBackupFile(backupFile, restoreDirectory, numberOfCPUs)
+		if err != nil {
+			pkg.AlertError(configStruct.Alerting, "Could not decompress backup file.", err)
+			return err
+		}
 	}
+
+	pkg.Log.Println("Preparing backups")
 
 	// - Prepare backup
 	_, err = pkg.PerformCommand("xtrabackup", "--prepare", "--target-dir", restoreDirectory)
@@ -104,12 +111,16 @@ func backupMysqlPerformRestore(fromHostname string, restoreTimestamp string, bac
 		return backupCleanup(volume, mountDirectory, digitalOceanClient)
 	}
 
+	pkg.Log.Println("Prepare completed! Putting files back")
+
 	// - Move to MySQL data directory
 	_, err = pkg.PerformCommand("xtrabackup", "--copy-back", "--target-dir", restoreDirectory)
 	if err != nil {
 		pkg.AlertError(configStruct.Alerting, "Could not copy back data files.", err)
 		return err
 	}
+
+	pkg.Log.Println("Last step: Set correct permissions on backup files")
 
 	// - Set correct permissions
 	_, err = pkg.PerformCommand("chown", "-R", "mysql:mysql", mysqlDataPath)
@@ -119,20 +130,67 @@ func backupMysqlPerformRestore(fromHostname string, restoreTimestamp string, bac
 	return backupCleanup(volume, mountDirectory, digitalOceanClient)
 }
 
-func downloadBackups(backups []backupItem, location string, bucketName string, minioClient *minio.Client) error {
+func downloadBackups(backups []backupItem, location string, bucketName string, minioClient *minio.Client) ([]string, error) {
+	localFiles := make([]string, 0)
 	for _, backup := range backups {
 		fileName := path.Base(backup.Path)
+		destinationFileName := path.Join(location, fileName)
 
-		err := minioClient.FGetObject(
+		// Do not download files that are already downloaded
+		stat, err := os.Stat(destinationFileName)
+		if err == nil && stat.Size() > 0 {
+			localFiles = append(localFiles, destinationFileName)
+			continue
+		}
+
+		err = minioClient.FGetObject(
 			bucketName,
 			backup.Path,
-			path.Join(location, fileName),
+			destinationFileName,
 			minio.GetObjectOptions{},
 		)
 
 		if err != nil {
-			return err
+			return localFiles, err
 		}
+
+		localFiles = append(localFiles, destinationFileName)
+	}
+
+	return localFiles, nil
+}
+
+func decompressBackupFile(backupFile string, restoreDirectory string, numberOfCPUs int) error {
+	inputFile, err := os.Open(backupFile)
+	if err != nil {
+		return err
+	}
+
+	execCmd := exec.Command("xbstream", "-x", "-C", restoreDirectory)
+	execCmd.Stdin = inputFile
+
+	err = execCmd.Start()
+	if err != nil {
+		return err
+	}
+
+	err = execCmd.Wait()
+	if err != nil {
+		return err
+	}
+
+	// - Decompress files with as many cores as possible
+	_, err = pkg.PerformCommand(
+		"xtrabackup",
+		"--decompress",
+		"--target-dir",
+		restoreDirectory,
+		"--parallel",
+		strconv.FormatInt(int64(numberOfCPUs), 10),
+	)
+
+	if err != nil {
+		return err
 	}
 
 	return nil

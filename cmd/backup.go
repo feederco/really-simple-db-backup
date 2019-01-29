@@ -38,6 +38,7 @@ func Begin(cliArgs []string) {
 
 	uploadFileFlag := flag.String("upload-file", "", "[upload] File to upload to bucket")
 	existingVolumeIDFlag := flag.String("existing-volume-id", "", "Existing volume ID")
+	existingBackupDirectoryFlag := flag.String("existing-backup-directory", "", "Existing backup directory")
 	hostnameFlag := flag.String("hostname", "", "Hostname of backups to list")
 	timestampFlag := flag.String("timestamp", "", "List backups since timestamp. Should be in format YYYYMMDDHHII")
 	verboseFlag := flag.Bool("v", false, "Verbose logging")
@@ -83,6 +84,7 @@ func Begin(cliArgs []string) {
 			configStruct.DOSpaceName,
 			configStruct.MysqlDataPath,
 			*existingVolumeIDFlag,
+			*existingBackupDirectoryFlag,
 			configStruct.PersistentStorage,
 			digitalOceanClient,
 			minioClient,
@@ -93,6 +95,7 @@ func Begin(cliArgs []string) {
 			configStruct.DOSpaceName,
 			configStruct.MysqlDataPath,
 			*existingVolumeIDFlag,
+			*existingBackupDirectoryFlag,
 			configStruct.PersistentStorage,
 			digitalOceanClient,
 			minioClient,
@@ -103,6 +106,7 @@ func Begin(cliArgs []string) {
 			configStruct.DOSpaceName,
 			configStruct.MysqlDataPath,
 			*existingVolumeIDFlag,
+			*existingBackupDirectoryFlag,
 			configStruct.PersistentStorage,
 			digitalOceanClient,
 			minioClient,
@@ -119,6 +123,7 @@ func Begin(cliArgs []string) {
 			configStruct.DOSpaceName,
 			configStruct.MysqlDataPath,
 			*existingVolumeIDFlag,
+			*existingBackupDirectoryFlag,
 			digitalOceanClient,
 			minioClient,
 		)
