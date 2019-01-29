@@ -42,9 +42,9 @@ func Begin(cliArgs []string) {
 	timestampFlag := flag.String("timestamp", "", "List backups since timestamp. Should be in format YYYYMMDDHHII")
 	verboseFlag := flag.Bool("v", false, "Verbose logging")
 
-	pkg.VerboseMode = *verboseFlag
-
 	configStruct = loadConfig(args[1:])
+
+	pkg.VerboseMode = *verboseFlag
 
 	if configStruct.DOSpaceName == "" {
 		pkg.ErrorLog.Fatalln("-do-space-name parameter required")
