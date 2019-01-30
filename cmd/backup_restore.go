@@ -27,6 +27,21 @@ func backupMysqlPerformRestore(fromHostname string, restoreTimestamp string, bac
 		return err
 	}
 
+	// Make sure MySQL data path exists
+	if _, fileErr := os.Stat(mysqlDataPath); fileErr != nil {
+		// It did not exist, just to be sure we try to create it. If that fails this script can't continue
+		if os.IsNotExist(fileErr) {
+			err = os.MkdirAll(mysqlDataPath, 0700)
+			if err != nil {
+				pkg.Log.Println("Could not access nor create the MySQL data path")
+				return err
+			}
+		} else {
+			pkg.Log.Println("Could not access the MySQL data path")
+			return err
+		}
+	}
+
 	sinceTimestamp := time.Now()
 	if restoreTimestamp != "" {
 		sinceTimestamp, err = parseBackupTimestamp(restoreTimestamp)
@@ -123,6 +138,16 @@ func backupMysqlPerformRestore(fromHostname string, restoreTimestamp string, bac
 
 	pkg.Log.Println("Prepare completed! Putting files back")
 	pkg.Log.Println("Warning: Removing everything in the MySQL data directory")
+
+	_, err = pkg.PerformCommand("find", restoreDirectory, "-name", "*.xbstream", "-exec", "rm {} \\;")
+	if err != nil {
+		pkg.AlertError(configStruct.Alerting, "Could not delete leftover .xbstream files. Continuing anyway. It may take more space than expected, but might work", err)
+	}
+
+	_, err = pkg.PerformCommand("find", restoreDirectory, "-name", "*.qb", "-exec", "rm {} \\;")
+	if err != nil {
+		pkg.AlertError(configStruct.Alerting, "Could not delete leftover .qb files. Continuing anyway. It may take more space than expected, but might work", err)
+	}
 
 	// We try to run this command. If it fails, we just run xtrabackup --copy-back anyway.
 	// It will error if the directory is not empty
