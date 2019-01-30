@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"errors"
-	"fmt"
 	"testing"
 	"time"
 )
@@ -148,7 +147,6 @@ func TestFailingBackupScenario(t *testing.T) {
 
 	allBackups = addLineagesToBackups(allBackups)
 
-	fmt.Println("The failing one")
 	// Test in the middle of the history
 	sinceTimestamp, _ := parseBackupTimestamp("201901281617")
 	backups := findBackupsThatCanBeDeleted(allBackups, sinceTimestamp, &RetentionConfig{
