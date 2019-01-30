@@ -59,7 +59,7 @@ func backupMysqlPerformRestore(fromHostname string, restoreTimestamp string, bac
 
 	// - Create & mount volume to house backup
 	sizeInGigaBytes := bytesToGigaBytes(totalSizeInBytes)
-	aDecentSizeInGigaBytes := sizeInGigaBytes * 8
+	aDecentSizeInGigaBytes := sizeInGigaBytes * 10
 
 	var volume *godo.Volume
 	var mountDirectory string
@@ -110,7 +110,12 @@ func backupMysqlPerformRestore(fromHostname string, restoreTimestamp string, bac
 	pkg.Log.Println("Preparing backups")
 
 	// - Prepare backup
-	_, err = pkg.PerformCommand("xtrabackup", "--prepare", "--target-dir", restoreDirectory)
+	_, err = pkg.PerformCommand(
+		"xtrabackup",
+		"--prepare",
+		"--target-dir",
+		restoreDirectory,
+	)
 	if err != nil {
 		pkg.AlertError(configStruct.Alerting, "Could not create backup.", err)
 		return backupCleanup(volume, mountDirectory, digitalOceanClient)
@@ -197,6 +202,7 @@ func decompressBackupFile(backupFile string, restoreDirectory string, numberOfCP
 		restoreDirectory,
 		"--parallel",
 		strconv.FormatInt(int64(numberOfCPUs), 10),
+		"--remove-original",
 	)
 
 	if err != nil {
