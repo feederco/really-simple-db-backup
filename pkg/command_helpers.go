@@ -37,7 +37,7 @@ func PerformCommand(cmdArgs ...string) (string, error) {
 	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
 	cmdReader, err := cmd.StdoutPipe()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("%s failed with:\n%s", strings.Join(cmdArgs, " "), err.Error())
 	}
 
 	output := ""
@@ -58,12 +58,12 @@ func PerformCommand(cmdArgs ...string) (string, error) {
 		if VerboseMode {
 			ErrorLog.Println("Error starting Cmd", err)
 		}
-		return "", err
+		return "", fmt.Errorf("%s failed with:\n%s", strings.Join(cmdArgs, " "), err.Error())
 	}
 
 	err = cmd.Wait()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("%s failed with:\n%s", strings.Join(cmdArgs, " "), err.Error())
 	}
 
 	return output, nil
