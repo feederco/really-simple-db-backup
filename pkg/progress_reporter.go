@@ -27,12 +27,13 @@ func ReportProgressOnFileSize(location string, expectedSize int64) func() {
 	}
 }
 
-// ReportProgressOnDirectoryCopy will start printing the size of a directory in relation to another file
-func ReportProgressOnDirectoryCopy(sourceDirectory string, destinationDirectory string) func() {
-	sourceSize, err := DirSize(destinationDirectory)
+// ReportProgressOnCopy will start printing the size of a file/directory in relation to another file/directory
+// If source file/directory does not exist it will return immediately
+func ReportProgressOnCopy(source string, destination string) func() {
+	sourceSize, err := FileOrDirSize(source)
 	if err != nil {
 		return func() {}
 	}
 
-	return ReportProgressOnFileSize(destinationDirectory, sourceSize)
+	return ReportProgressOnFileSize(destination, sourceSize)
 }

@@ -16,39 +16,32 @@ import (
 	minio "github.com/minio/minio-go"
 )
 
-func backupMysqlPerformRestore(fromHostname string, restoreTimestamp string, backupBucket string, mysqlDataPath string, existingVolumeID string, existingBackupDirectory string, digitalOceanClient *pkg.DigitalOceanClient, minioClient *minio.Client) error {
+func backupMysqlDownloadAndPrepare(
+	fromHostname string,
+	restoreTimestamp string,
+	backupBucket string,
+	existingVolumeID string,
+	existingBackupDirectory string,
+	digitalOceanClient *pkg.DigitalOceanClient,
+	minioClient *minio.Client,
+) (string, string, *godo.Volume, error) {
 	var err error
 
 	err = prerequisites(configStruct.PersistentStorage)
 	if err != nil {
-		return err
+		return "", "", nil, err
 	}
 
 	err = backupPrerequisites()
 	if err != nil {
-		return err
-	}
-
-	// Make sure MySQL data path exists
-	if _, fileErr := os.Stat(mysqlDataPath); fileErr != nil {
-		// It did not exist, just to be sure we try to create it. If that fails this script can't continue
-		if os.IsNotExist(fileErr) {
-			err = os.MkdirAll(mysqlDataPath, 0700)
-			if err != nil {
-				pkg.Log.Println("Could not access nor create the MySQL data path")
-				return err
-			}
-		} else {
-			pkg.Log.Println("Could not access the MySQL data path")
-			return err
-		}
+		return "", "", nil, err
 	}
 
 	sinceTimestamp := time.Now()
 	if restoreTimestamp != "" {
 		sinceTimestamp, err = parseBackupTimestamp(restoreTimestamp)
 		if err != nil {
-			return errors.New("Incorrect timestamp passed in: " + restoreTimestamp + " (error: " + err.Error() + ")")
+			return "", "", nil, errors.New("Incorrect timestamp passed in: " + restoreTimestamp + " (error: " + err.Error() + ")")
 		}
 	}
 
@@ -59,12 +52,12 @@ func backupMysqlPerformRestore(fromHostname string, restoreTimestamp string, bac
 	// - List all backups we need
 	allBackups, err := listAllBackups(fromHostname, backupBucket, minioClient)
 	if err != nil {
-		return err
+		return "", "", nil, err
 	}
 
 	backupFiles := findRelevantBackupsUpTo(sinceTimestamp, allBackups)
 	if len(backupFiles) == 0 {
-		return errors.New("No backup found to restore from")
+		return "", "", nil, errors.New("No backup found to restore from")
 	}
 
 	pkg.Log.Printf("%d backup files found\n", len(backupFiles))
@@ -91,14 +84,14 @@ func backupMysqlPerformRestore(fromHostname string, restoreTimestamp string, bac
 
 	if err != nil {
 		pkg.ErrorLog.Println("Could not create mount volume.", err)
-		return nil
+		return "", mountDirectory, volume, nil
 	}
 
 	restoreDirectory := path.Join(mountDirectory, "really-simple-db-restore")
 	err = os.MkdirAll(restoreDirectory, 0755)
 	if err != nil {
 		pkg.ErrorLog.Println("Could not create directory to house backup files.")
-		return nil
+		return restoreDirectory, mountDirectory, volume, nil
 	}
 
 	pkg.Log.Println("Downloading and extracting backups")
@@ -107,7 +100,7 @@ func backupMysqlPerformRestore(fromHostname string, restoreTimestamp string, bac
 	err = downloadBackups(backupFiles, restoreDirectory, backupBucket, minioClient)
 	if err != nil {
 		pkg.ErrorLog.Println("Could not download backups!")
-		return err
+		return restoreDirectory, mountDirectory, volume, err
 	}
 
 	pkg.Log.Println("Decompressing backups")
@@ -137,17 +130,31 @@ func backupMysqlPerformRestore(fromHostname string, restoreTimestamp string, bac
 
 	if err != nil {
 		pkg.AlertError(configStruct.Alerting, "Could not create backup.", err)
-		return backupCleanup(volume, mountDirectory, digitalOceanClient)
+		return restoreDirectory, mountDirectory, volume, backupCleanup(volume, mountDirectory, digitalOceanClient)
 	}
 
-	pkg.Log.Println("Prepare completed! Putting files back")
+	pkg.Log.Println("Prepare completed!")
+	return restoreDirectory, mountDirectory, volume, nil
+}
+
+func backupMysqlFinalizeRestore(
+	restoreDirectory string,
+	mysqlDataPath string,
+	mountDirectory string,
+	volume *godo.Volume,
+	digitalOceanClient *pkg.DigitalOceanClient,
+	minioClient *minio.Client,
+) error {
+	var err error
+
+	pkg.Log.Println("Starting to put everything back")
 	pkg.Log.Println("Warning: Removing everything in the MySQL data directory")
 
 	// We try to run this command. If it fails, we just run xtrabackup --copy-back anyway.
 	// It will error if the directory is not empty
 	pkg.PerformCommand("mv", mysqlDataPath, "/tmp/")
 
-	copyCompleted := pkg.ReportProgressOnDirectoryCopy(restoreDirectory, mysqlDataPath)
+	copyCompleted := pkg.ReportProgressOnCopy(restoreDirectory, mysqlDataPath)
 
 	// - Move to MySQL data directory
 	_, err = pkg.PerformCommand("xtrabackup", "--copy-back", "--target-dir", restoreDirectory)
@@ -163,6 +170,9 @@ func backupMysqlPerformRestore(fromHostname string, restoreTimestamp string, bac
 
 	// - Set correct permissions
 	_, err = pkg.PerformCommand("chown", "-R", "mysql:mysql", mysqlDataPath)
+	if err != nil {
+		pkg.AlertError(configStruct.Alerting, "Could not set correct permissions on MySQL data file", err)
+	}
 
 	pkg.AlertMessage(configStruct.Alerting, "Backup restore complete. Now it is safe to start MySQL.")
 

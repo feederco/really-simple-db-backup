@@ -15,7 +15,7 @@ Latest release can be found on [releases page](https://github.com/feederco/reall
 ```
 ssh your-server
 wget https://github.com/feederco/really-simple-db-backup/releases/download/$VERSION/really-simple-db-backup_$VERSION_$PLATFORM_$ARCH.tar.gz -o really-simple-db-backup.tar.gz
-tar xvf really-simple-db-backup.tar.gz 
+tar xvf really-simple-db-backup.tar.gz
 sudo mv really-simple-db-backup /usr/bin/really-simple-db-backup
 ```
 
@@ -41,24 +41,69 @@ And add the following:
 Set to run 05:00 AM every day.
 
 ```
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 0 5 * * * /usr/bin/really-simple-db-backup perform
 ```
 
 #### For hourly backups
 
 ```
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 1 * * * * /usr/bin/really-simple-db-backup perform
 ```
 
 ### Available commands
 
 ```shell
-really-simple-db-backup perform|perform-full|perform-incremental|upload|prune|test-alert|list-backups
+really-simple-db-backup THE_COMMAND
 ```
+
+- [`perform`](#perform)
+- [`perform-full`](#perform-full)
+- [`perform-incremental`](#perform-incremental)
+- [`restore`](#restore)
+- [`upload`](#upload)
+- [`download`](#download)
+- [`finalize-restore`](#finalize-restore)
+- [`test-alert`](#test-alert)
+- [`list-backups`](#list-backups)
+- [`prune`](#prune)
 
 ### Perform backup
 
 Performs either a full or incremental backup by checking for previous runs.
+
+```shell
+really-simple-db-backup perform
+```
+
+`/etc/really-simple-db-backup.json`
+
+```json
+{
+  "do_key": "digitalocean-app-token",
+  "do_space_endpoint": "fra1.digitaloceanspaces.com",
+  "do_space_name": "my-backups",
+  "do_space_key": "auth-key-for-space",
+  "do_space_secret": "auth-secret-for-space",
+  "mysql_data_path": "(optional)",
+  "persistent_storage": "(optional)",
+  "alerting": {
+    "slack": {
+      "webhook_url": "https://hooks.slack.com/services/<your-webhook-url>"
+    }
+  },
+  "retention": {
+    "automatically_remove_old": true,
+    "retention_in_days": 7,
+    "hours_between_full_backups": 24
+  }
+}
+```
+
+#### Perform without config file
 
 ```shell
 really-simple-db-backup perform \
@@ -90,6 +135,26 @@ If for some reason a backup failed and you were successfully able to retrieve a 
 ```shell
 really-simple-db-backup upload -file /path/to/backup.xbstream
 ```
+
+### Download and prepare backup without moving it back
+
+`restore` will download a backup to a new volume, extract it, decompress it, run [Xtrabackup's prepare](https://www.percona.com/doc/percona-xtrabackup/8.0/backup_scenarios/full_backup.html#preparing-a-backup) command. When these steps are completed the backup is ready to be moved to the MySQL `datadir` and after that MySQL is ready to start again.
+
+If you just want to download and prepare a backup, you can use the `download` command. This is good if you just want to
+
+```shell
+really-simple-db-backup download -hostname my-other-host
+```
+
+### Put back after `download`
+
+If you have run the `download` command and have a fully prepared backup that you now wish to use, you can run the `finalize-restore` command which will run the second half of steps that are run by the `restore` command.
+
+```shell
+really-simple-db-backup finalize-restore -existing-restore-directory-flag=/mnt/my_restore_volume/really-simple-db-restore
+```
+
+**Note**
 
 ### Remove old backups
 
@@ -191,11 +256,11 @@ Set to number of hours between full backups. Note: This does perform the actuall
 
 ### Different MySQL data directory
 
-The default directory for MySQL is normally `/var/lib/mysql`. If you have mounted a volume for your data and set different [`datadir`](https://dev.mysql.com/doc/refman/8.0/en/data-directory.html) you can pass in the following option: `-mysql-data-dir=/mnt/my_mysql_volume/mysql`.
+The default directory for MySQL is normally `/var/lib/mysql`. If you have mounted a volume for your data and set different [`datadir`](https://dev.mysql.com/doc/refman/8.0/en/data-directory.html) you can pass in the following option: `-mysql-data-dir=/mnt/my_mysql_volume/mysql` or set the `"mysql_data_path"` config property in the JSON config.
 
 ### Persistent storage directory
 
-To save state between runs a persistent storage directory is created to store information about the last backup. By default this is: `/var/lib/backup-mysql`. To change this the flag `-persistent-storage=/my/alternate/directory` can be passed in.
+To save state between runs a persistent storage directory is created to store information about the last backup. By default this is: `/var/lib/backup-mysql`. To change this the flag `-persistent-storage=/my/alternate/directory` can be passed in or set the `"persistent_storage"` config property in the JSON config.
 
 ## Process
 
@@ -214,7 +279,17 @@ When running the following things happen:
 5. Percona Xtrabackup is run and a compressed backup file is created onto the volume
 6. The backup file is uploaded to a DigitalOcean Space for safe storage
 
-### _WIP_ Restoring
+### Restoring
+
+1. Fetch all backups for the given host on the [DigitalOcean Space](https://www.digitalocean.com/products/spaces/)
+2. Find the one that is a best match for the passed in timestamp
+4. A [DigitalOcean Block Storage volume](https://www.digitalocean.com/products/block-storage/) is created and mounted. The volume size depends on the file found in the
+5. Download & extract all pieces for the backup to this volume
+6. Decompress the backup
+7. Perform `Xtrabackup`'s prepare command which prepares it for use
+8. Move all files back to the MySQL data path
+
+Starting MySQL is up to you when the process is finished.
 
 ## Alerting
 
@@ -239,12 +314,6 @@ The `slack` entry in the config file can have the following options:
 }
 ```
 
-# WIP
-
-The following functionality has yet been implemented.
-
-1. Restore functionality
-
 ## For maintainers
 
 We use [`goreleaser.com`](https://goreleaser.com) for release management. Install `goreleaser` as defined here: [goreleaser.com/install](https://goreleaser.com/install/)
@@ -258,3 +327,9 @@ git tag 1.0.0
 git push --tags
 GITHUB_TOKEN=yourtoken goreleaser
 ```
+
+### Issues to work on
+
+All issue management is on our [Github issues](https://github.com/feederco/really-simple-db-backup/issues).
+
+Check the issues tagged [`help wanted`](https://github.com/feederco/really-simple-db-backup/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22) for good tickets to work on.
