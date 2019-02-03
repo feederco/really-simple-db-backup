@@ -12,6 +12,7 @@ const progressBarRecheckTime = 1
 func ReportProgressOnFileSize(location string, expectedSize int64, doneChan chan bool) {
 	bar := pb.StartNew(int(expectedSize))
 	bar.SetUnits(pb.U_BYTES)
+	bar.ShowSpeed = true
 	closed := false
 
 	go func() {

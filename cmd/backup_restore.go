@@ -196,7 +196,9 @@ func downloadBackups(backups []backupItem, restoreDirectory string, bucketName s
 			return err
 		}
 
-		progressBar := pb.New(int(size)).SetUnits(pb.U_BYTES)
+		progressBar := pb.New(int(size))
+		progressBar.SetUnits(pb.U_BYTES)
+		progressBar.ShowSpeed = true
 		progressReader := progressBar.NewProxyReader(reader)
 
 		progressBar.Start()
