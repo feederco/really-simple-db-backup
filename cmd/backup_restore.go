@@ -154,17 +154,24 @@ func backupMysqlFinalizeRestore(
 	// It will error if the directory is not empty
 	pkg.PerformCommand("mv", mysqlDataPath, "/tmp/")
 
-	copyCompleted := pkg.ReportProgressOnCopy(restoreDirectory, mysqlDataPath)
+	copyCompletedChannel := make(chan bool)
+	go pkg.ReportProgressOnCopy(restoreDirectory, mysqlDataPath, copyCompletedChannel)
 
 	// - Move to MySQL data directory
-	_, err = pkg.PerformCommand("xtrabackup", "--copy-back", "--target-dir", restoreDirectory)
+	_, err = pkg.PerformCommand(
+		"xtrabackup",
+		"--copy-back",
+		"--target-dir",
+		restoreDirectory,
+		"--datadir",
+		mysqlDataPath,
+	)
+	copyCompletedChannel <- true
+
 	if err != nil {
-		copyCompleted()
 		pkg.AlertError(configStruct.Alerting, "Could not copy back data files.", err)
 		return err
 	}
-
-	copyCompleted()
 
 	pkg.Log.Println("Last step: Set correct permissions on backup files")
 

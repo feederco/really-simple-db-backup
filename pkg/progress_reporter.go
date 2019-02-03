@@ -6,12 +6,18 @@ import (
 	"github.com/cheggaaa/pb"
 )
 
-const progressBarRecheckTime = 5
+const progressBarRecheckTime = 1
 
 // ReportProgressOnFileSize will start printing the size of a file in relation to what the expected size is
-func ReportProgressOnFileSize(location string, expectedSize int64) func() {
+func ReportProgressOnFileSize(location string, expectedSize int64, doneChan chan bool) {
 	bar := pb.StartNew(int(expectedSize))
-	closed := true
+	bar.SetUnits(pb.U_BYTES)
+	closed := false
+
+	go func() {
+		<-doneChan
+		closed = true
+	}()
 
 	for !closed {
 		size, err := FileOrDirSize(location)
@@ -21,19 +27,15 @@ func ReportProgressOnFileSize(location string, expectedSize int64) func() {
 
 		time.Sleep(progressBarRecheckTime * time.Second)
 	}
-
-	return func() {
-		closed = true
-	}
 }
 
 // ReportProgressOnCopy will start printing the size of a file/directory in relation to another file/directory
 // If source file/directory does not exist it will return immediately
-func ReportProgressOnCopy(source string, destination string) func() {
+func ReportProgressOnCopy(source string, destination string, doneChan chan bool) {
 	sourceSize, err := FileOrDirSize(source)
 	if err != nil {
-		return func() {}
+		return
 	}
 
-	return ReportProgressOnFileSize(destination, sourceSize)
+	ReportProgressOnFileSize(destination, sourceSize, doneChan)
 }
