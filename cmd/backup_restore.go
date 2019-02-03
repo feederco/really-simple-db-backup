@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"errors"
+	"io"
 	"os"
 	"os/exec"
 	"path"
@@ -9,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/cheggaaa/pb"
 	"github.com/digitalocean/godo"
 	"github.com/feederco/really-simple-db-backup/pkg"
 	minio "github.com/minio/minio-go"
@@ -99,28 +101,29 @@ func backupMysqlPerformRestore(fromHostname string, restoreTimestamp string, bac
 		return nil
 	}
 
-	pkg.Log.Println("Downloading backups")
+	pkg.Log.Println("Downloading and extracting backups")
 
 	// - Download full backup and incremental pieces
-	var localFiles []string
-	localFiles, err = downloadBackups(backupFiles, restoreDirectory, backupBucket, minioClient)
+	err = downloadBackups(backupFiles, restoreDirectory, backupBucket, minioClient)
 	if err != nil {
 		pkg.ErrorLog.Println("Could not download backups!")
 		return err
 	}
 
-	pkg.Log.Println("Download completed backups")
 	pkg.Log.Println("Decompressing backups")
 
 	numberOfCPUs := runtime.NumCPU()
 
-	for _, backupFile := range localFiles {
-		err = decompressBackupFile(backupFile, restoreDirectory, numberOfCPUs)
-		if err != nil {
-			pkg.AlertError(configStruct.Alerting, "Could not decompress backup file.", err)
-			return err
-		}
-	}
+	// - Decompress files with as many cores as possible
+	_, err = pkg.PerformCommand(
+		"xtrabackup",
+		"--decompress",
+		"--target-dir",
+		restoreDirectory,
+		"--parallel",
+		strconv.FormatInt(int64(numberOfCPUs), 10),
+		"--remove-original",
+	)
 
 	pkg.Log.Println("Preparing backups")
 
@@ -170,69 +173,55 @@ func backupMysqlPerformRestore(fromHostname string, restoreTimestamp string, bac
 	return backupCleanup(volume, mountDirectory, digitalOceanClient)
 }
 
-func downloadBackups(backups []backupItem, location string, bucketName string, minioClient *minio.Client) ([]string, error) {
-	localFiles := make([]string, 0)
+func downloadBackups(backups []backupItem, restoreDirectory string, bucketName string, minioClient *minio.Client) error {
+	numberOfCPUs := runtime.NumCPU()
+
 	for _, backup := range backups {
-		fileName := path.Base(backup.Path)
-		destinationFileName := path.Join(location, fileName)
-
-		// Do not download files that are already downloaded
-		stat, err := os.Stat(destinationFileName)
-		if err == nil && stat.Size() > 0 {
-			localFiles = append(localFiles, destinationFileName)
-			continue
-		}
-
-		err = minioClient.FGetObject(
-			bucketName,
-			backup.Path,
-			destinationFileName,
-			minio.GetObjectOptions{},
-		)
+		reader, size, err := getBackupReaderAndSize(minioClient, bucketName, backup.Path)
 
 		if err != nil {
-			return localFiles, err
+			return err
 		}
 
-		localFiles = append(localFiles, destinationFileName)
+		progressBar := pb.New(int(size)).SetUnits(pb.U_BYTES)
+		progressReader := progressBar.NewProxyReader(reader)
+
+		err = decompressBackupFile(progressReader, restoreDirectory, numberOfCPUs)
+
+		progressBar.Finish()
+
+		if err != nil {
+			return err
+		}
 	}
 
-	return localFiles, nil
+	return nil
 }
 
-func decompressBackupFile(backupFile string, restoreDirectory string, numberOfCPUs int) error {
-	inputFile, err := os.Open(backupFile)
-	if err != nil {
-		return err
-	}
-
+func decompressBackupFile(dataReader io.Reader, restoreDirectory string, numberOfCPUs int) error {
 	execCmd := exec.Command("xbstream", "-x", "-C", restoreDirectory)
-	execCmd.Stdin = inputFile
+	execCmd.Stdin = dataReader
 
-	err = execCmd.Start()
+	err := execCmd.Start()
 	if err != nil {
 		return err
 	}
 
 	err = execCmd.Wait()
+	return err
+}
+
+func getBackupReaderAndSize(client *minio.Client, bucketName, objectName string) (io.Reader, int64, error) {
+	objectStat, err := client.StatObject(bucketName, objectName, minio.StatObjectOptions{})
 	if err != nil {
-		return err
+		return nil, 0, err
 	}
 
-	// - Decompress files with as many cores as possible
-	_, err = pkg.PerformCommand(
-		"xtrabackup",
-		"--decompress",
-		"--target-dir",
-		restoreDirectory,
-		"--parallel",
-		strconv.FormatInt(int64(numberOfCPUs), 10),
-		"--remove-original",
-	)
-
+	// Seek to current position for incoming reader.
+	objectReader, err := client.GetObject(bucketName, objectName, minio.GetObjectOptions{})
 	if err != nil {
-		return err
+		return nil, 0, err
 	}
 
-	return nil
+	return objectReader, objectStat.Size, nil
 }
