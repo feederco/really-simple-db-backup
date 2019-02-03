@@ -13,6 +13,8 @@ import (
 const requiredMysqlVersion = "8"
 
 func prerequisites(persistentStorageDirectory string) error {
+	pkg.Log.Println("Checking prerequisites overall")
+
 	var err error
 
 	// Make sure we are running as a DigitalOcean droplet
@@ -25,7 +27,7 @@ func prerequisites(persistentStorageDirectory string) error {
 	dirInfo, err = os.Stat(persistentStorageDirectory)
 	if err != nil && os.IsNotExist(err) {
 		pkg.Log.Println("Persistent storage directory did not exist. Attempting to create", persistentStorageDirectory)
-		err = os.Mkdir(persistentStorageDirectory, 0755)
+		err = os.Mkdir(persistentStorageDirectory, 0700)
 		if err != nil {
 			pkg.ErrorLog.Fatalf("Could not create persistent storage directory at %s: %s", persistentStorageDirectory, err)
 		}
@@ -43,10 +45,14 @@ func prerequisites(persistentStorageDirectory string) error {
 		return err
 	}
 
+	pkg.Log.Println("Prerequisite tests passed")
+
 	return nil
 }
 
 func backupPrerequisites() error {
+	pkg.Log.Println("Checking backup prerequisites")
+
 	mysqlVersion, err := pkg.PerformCommand("mysqld", "--version")
 	if err != nil {
 		return err
@@ -74,11 +80,27 @@ func backupPrerequisites() error {
 		}
 	}
 
+	// Prerequisite: qpress installed
+	isQpressInstalled, err := isBinaryInstalled("qpress")
+	if err != nil {
+		return err
+	}
+
+	if !isQpressInstalled {
+		_, err = pkg.PerformCommand("apt-get", "install", "-y", "qpress")
+		if err != nil {
+			return err
+		}
+	}
+
 	// Check if running as root
 	err = checkCorrectUser()
 	if err != nil {
 		return err
 	}
+
+	pkg.Log.Println("Backup prerequisites existed")
+
 	return nil
 }
 

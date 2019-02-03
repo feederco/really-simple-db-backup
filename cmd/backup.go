@@ -38,13 +38,14 @@ func Begin(cliArgs []string) {
 
 	uploadFileFlag := flag.String("upload-file", "", "[upload] File to upload to bucket")
 	existingVolumeIDFlag := flag.String("existing-volume-id", "", "Existing volume ID")
+	existingBackupDirectoryFlag := flag.String("existing-backup-directory", "", "Existing backup directory")
 	hostnameFlag := flag.String("hostname", "", "Hostname of backups to list")
 	timestampFlag := flag.String("timestamp", "", "List backups since timestamp. Should be in format YYYYMMDDHHII")
 	verboseFlag := flag.Bool("v", false, "Verbose logging")
 
-	pkg.VerboseMode = *verboseFlag
-
 	configStruct = loadConfig(args[1:])
+
+	pkg.VerboseMode = *verboseFlag
 
 	if configStruct.DOSpaceName == "" {
 		pkg.ErrorLog.Fatalln("-do-space-name parameter required")
@@ -78,13 +79,54 @@ func Begin(cliArgs []string) {
 
 	switch args[0] {
 	case "perform":
-		err = backupMysqlPerform(backupTypeDecide, configStruct.DOSpaceName, configStruct.MysqlDataPath, *existingVolumeIDFlag, configStruct.PersistentStorage, digitalOceanClient, minioClient)
+		err = backupMysqlPerform(
+			backupTypeDecide,
+			configStruct.DOSpaceName,
+			configStruct.MysqlDataPath,
+			*existingVolumeIDFlag,
+			*existingBackupDirectoryFlag,
+			configStruct.PersistentStorage,
+			digitalOceanClient,
+			minioClient,
+		)
 	case "perform-full":
-		err = backupMysqlPerform(backupTypeFull, configStruct.DOSpaceName, configStruct.MysqlDataPath, *existingVolumeIDFlag, configStruct.PersistentStorage, digitalOceanClient, minioClient)
+		err = backupMysqlPerform(
+			backupTypeFull,
+			configStruct.DOSpaceName,
+			configStruct.MysqlDataPath,
+			*existingVolumeIDFlag,
+			*existingBackupDirectoryFlag,
+			configStruct.PersistentStorage,
+			digitalOceanClient,
+			minioClient,
+		)
 	case "perform-incremental":
-		err = backupMysqlPerform(backupTypeIncremental, configStruct.DOSpaceName, configStruct.MysqlDataPath, *existingVolumeIDFlag, configStruct.PersistentStorage, digitalOceanClient, minioClient)
+		err = backupMysqlPerform(
+			backupTypeIncremental,
+			configStruct.DOSpaceName,
+			configStruct.MysqlDataPath,
+			*existingVolumeIDFlag,
+			*existingBackupDirectoryFlag,
+			configStruct.PersistentStorage,
+			digitalOceanClient,
+			minioClient,
+		)
 	case "restore":
-		err = backupMysqlPerformRestore()
+		fromHostname := hostname
+		if *hostnameFlag != "" {
+			fromHostname = *hostnameFlag
+		}
+
+		err = backupMysqlPerformRestore(
+			fromHostname,
+			*timestampFlag,
+			configStruct.DOSpaceName,
+			configStruct.MysqlDataPath,
+			*existingVolumeIDFlag,
+			*existingBackupDirectoryFlag,
+			digitalOceanClient,
+			minioClient,
+		)
 	case "upload":
 		if *uploadFileFlag == "" {
 			pkg.ErrorLog.Fatalln("-upload-file parameter required for `upload` command.")

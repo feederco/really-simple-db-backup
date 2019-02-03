@@ -3,7 +3,6 @@ package pkg
 import (
 	"errors"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/digitalocean/godo"
@@ -30,7 +29,7 @@ func CreateVolume(createRequest *godo.VolumeCreateRequest, digitalOceanClient *D
 }
 
 // MountVolume mounts volume on machine and won't return until complete
-func MountVolume(volumeName string, volumeID string, dropletID int, digitalOceanClient *DigitalOceanClient) (string, error) {
+func MountVolume(volumeName string, mountPoint string, volumeID string, dropletID int, digitalOceanClient *DigitalOceanClient) error {
 	action, _, err := digitalOceanClient.Client.StorageActions.Attach(
 		digitalOceanClient.Context,
 		volumeID,
@@ -38,16 +37,16 @@ func MountVolume(volumeName string, volumeID string, dropletID int, digitalOcean
 	)
 
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	if action.Status == "errored" {
-		return "", errors.New("Attach action had a status of errored")
+		return errors.New("Attach action had a status of errored")
 	}
 
 	err = digitalOceanWaitForAction(action, digitalOceanClient)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	// Wait for system to settle
@@ -57,11 +56,10 @@ func MountVolume(volumeName string, volumeID string, dropletID int, digitalOcean
 
 	// Volume is now available in /dev/disk/by-id/scsi-0DO_Volume_$VOLUME_NAME
 	diskLocation := "/dev/disk/by-id/scsi-0DO_Volume_" + volumeName
-	mountPoint := "/mnt/" + strings.Replace(volumeName, "-", "_", -1)
 
-	err = os.MkdirAll(mountPoint, 0755)
+	err = os.MkdirAll(mountPoint, 0700)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	_, err = PerformCommand("mount", "-o", "discard,defaults,noatime", diskLocation, mountPoint)
@@ -73,7 +71,7 @@ func MountVolume(volumeName string, volumeID string, dropletID int, digitalOcean
 
 		file, testErr := os.Create(mountPoint + "/test-mount")
 		if testErr != nil {
-			return mountPoint, testErr
+			return testErr
 		}
 		file.Close()
 
@@ -82,7 +80,7 @@ func MountVolume(volumeName string, volumeID string, dropletID int, digitalOcean
 		err = nil
 	}
 
-	return mountPoint, err
+	return err
 }
 
 // UnmountVolume unmounts a volume

@@ -36,3 +36,21 @@ func AlertError(alertingConfig *AlertingConfig, message string, err error) {
 	// Always print to error log
 	ErrorLog.Print(fullMessage)
 }
+
+// AlertMessage simply alerts a message to the correct channels
+func AlertMessage(alertingConfig *AlertingConfig, message string) {
+	hostname, _ := os.Hostname()
+
+	fullMessage := fmt.Sprintf("[backup message] [%s] [host: %s] %s", time.Now().Format(time.RFC3339), hostname, message)
+
+	if alertingConfig != nil && alertingConfig.Slack != nil {
+		err := alerting.SlackLog(fullMessage, alertingConfig.Slack)
+
+		if err != nil {
+			Log.Println("Warning: Could not alert to Slack.", err)
+		}
+	}
+
+	// Always print to error log
+	Log.Print(fullMessage)
+}

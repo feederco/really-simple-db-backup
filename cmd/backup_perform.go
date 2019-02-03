@@ -10,12 +10,11 @@ import (
 	minio "github.com/minio/minio-go"
 
 	"os"
-	"os/exec"
 
 	"github.com/digitalocean/godo"
 )
 
-func backupMysqlPerform(backupType string, backupsBucket string, mysqlDataPath string, existingVolumeID string, persistentStorageDirectory string, digitalOceanClient *pkg.DigitalOceanClient, minioClient *minio.Client) error {
+func backupMysqlPerform(backupType string, backupsBucket string, mysqlDataPath string, existingVolumeID string, existingBackupDirectory string, persistentStorageDirectory string, digitalOceanClient *pkg.DigitalOceanClient, minioClient *minio.Client) error {
 	var err error
 
 	pkg.Log.Println("Backup started", time.Now().Format(time.RFC3339))
@@ -61,7 +60,7 @@ func backupMysqlPerform(backupType string, backupsBucket string, mysqlDataPath s
 		return err
 	}
 
-	sizeInGigaBytes := sizeInBytes / (1 << (10 * 3))
+	sizeInGigaBytes := bytesToGigaBytes(sizeInBytes)
 	// aDecentSizeInGigaBytes := sizeInGigaBytes + (sizeInGigaBytes / 6)
 	aDecentSizeInGigaBytes := sizeInGigaBytes
 
@@ -73,6 +72,7 @@ func backupMysqlPerform(backupType string, backupsBucket string, mysqlDataPath s
 		aDecentSizeInGigaBytes,
 		digitalOceanClient,
 		existingVolumeID,
+		existingBackupDirectory,
 	)
 
 	if err != nil {
@@ -91,19 +91,11 @@ func backupMysqlPerform(backupType string, backupsBucket string, mysqlDataPath s
 
 	// - Start Percona XtraBackup
 	err = (func() error {
-		err = os.MkdirAll(backupDirectory, 0755)
+		err = os.MkdirAll(backupDirectory, 0700)
 		if err != nil {
 			pkg.AlertError(configStruct.Alerting, "Could not create backup directory.", err)
 			return err
 		}
-
-		var outputFile *os.File
-		outputFile, err = os.Create(backupFileTemporary)
-		if err != nil {
-			pkg.AlertError(configStruct.Alerting, "Could not create backup file.", err)
-			return err
-		}
-		defer outputFile.Close()
 
 		backupArgs := []string{
 			"--backup",
@@ -131,18 +123,9 @@ func backupMysqlPerform(backupType string, backupsBucket string, mysqlDataPath s
 			}
 		}
 
-		backupCmd := exec.Command("xtrabackup", backupArgs...)
-		backupCmd.Stdout = outputFile
-
-		err = backupCmd.Start()
+		err = pkg.PerformCommandWithFileOutput(backupFileTemporary, "xtrabackup", backupArgs...)
 		if err != nil {
-			pkg.AlertError(configStruct.Alerting, "Could not start xtrabackup command.", err)
-			return err
-		}
-
-		err = backupCmd.Wait()
-		if err != nil {
-			pkg.AlertError(configStruct.Alerting, "Could not create backup.", err)
+			pkg.AlertError(configStruct.Alerting, "xtrabackup cmd failed", err)
 			return err
 		}
 
@@ -183,4 +166,8 @@ func backupMysqlPerform(backupType string, backupsBucket string, mysqlDataPath s
 	}
 
 	return backupCleanup(volume, mountDirectory, digitalOceanClient)
+}
+
+func bytesToGigaBytes(bytes int64) int64 {
+	return bytes / (1 << (10 * 3))
 }
