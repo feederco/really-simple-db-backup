@@ -134,6 +134,7 @@ func backupMysqlPerformRestore(fromHostname string, restoreTimestamp string, bac
 		"--target-dir",
 		restoreDirectory,
 	)
+
 	if err != nil {
 		pkg.AlertError(configStruct.Alerting, "Could not create backup.", err)
 		return backupCleanup(volume, mountDirectory, digitalOceanClient)
@@ -141,16 +142,6 @@ func backupMysqlPerformRestore(fromHostname string, restoreTimestamp string, bac
 
 	pkg.Log.Println("Prepare completed! Putting files back")
 	pkg.Log.Println("Warning: Removing everything in the MySQL data directory")
-
-	_, err = pkg.PerformCommand("find", restoreDirectory, "-name", "*.xbstream", "-exec", "rm {} \\;")
-	if err != nil {
-		pkg.AlertError(configStruct.Alerting, "Could not delete leftover .xbstream files. Continuing anyway. It may take more space than expected, but might work", err)
-	}
-
-	_, err = pkg.PerformCommand("find", restoreDirectory, "-name", "*.qb", "-exec", "rm {} \\;")
-	if err != nil {
-		pkg.AlertError(configStruct.Alerting, "Could not delete leftover .qb files. Continuing anyway. It may take more space than expected, but might work", err)
-	}
 
 	// We try to run this command. If it fails, we just run xtrabackup --copy-back anyway.
 	// It will error if the directory is not empty
