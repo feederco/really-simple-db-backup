@@ -147,12 +147,17 @@ func backupMysqlPerformRestore(fromHostname string, restoreTimestamp string, bac
 	// It will error if the directory is not empty
 	pkg.PerformCommand("mv", mysqlDataPath, "/tmp/")
 
+	copyCompleted := pkg.ReportProgressOnDirectoryCopy(restoreDirectory, mysqlDataPath)
+
 	// - Move to MySQL data directory
 	_, err = pkg.PerformCommand("xtrabackup", "--copy-back", "--target-dir", restoreDirectory)
 	if err != nil {
+		copyCompleted()
 		pkg.AlertError(configStruct.Alerting, "Could not copy back data files.", err)
 		return err
 	}
+
+	copyCompleted()
 
 	pkg.Log.Println("Last step: Set correct permissions on backup files")
 
