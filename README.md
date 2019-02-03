@@ -256,7 +256,7 @@ Set to number of hours between full backups. Note: This does perform the actuall
 
 ### Different MySQL data directory
 
-The default directory for MySQL is normally `/var/lib/mysql`. If you have mounted a volume for your data and set different [`datadir`](https://dev.mysql.com/doc/refman/8.0/en/data-directory.html) you can pass in the following option: `-mysql-data-dir=/mnt/my_mysql_volume/mysql` or set the `"mysql_data_path"` config property in the JSON config.
+The default directory for MySQL is normally `/var/lib/mysql`. If you have mounted a volume for your data and set different [`datadir`](https://dev.mysql.com/doc/refman/8.0/en/data-directory.html) you can pass in the following option: `-mysql-data-path=/mnt/my_mysql_volume/mysql` or set the `"mysql_data_path"` config property in the JSON config.
 
 ### Persistent storage directory
 
