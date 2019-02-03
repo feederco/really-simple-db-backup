@@ -69,7 +69,7 @@ func backupMysqlDownloadAndPrepare(
 
 	// - Create & mount volume to house backup
 	sizeInGigaBytes := bytesToGigaBytes(totalSizeInBytes)
-	aDecentSizeInGigaBytes := sizeInGigaBytes * 10
+	aDecentSizeInGigaBytes := sizeInGigaBytes * 5
 
 	var volume *godo.Volume
 	var mountDirectory string
@@ -191,6 +191,8 @@ func downloadBackups(backups []backupItem, restoreDirectory string, bucketName s
 
 		progressBar := pb.New(int(size)).SetUnits(pb.U_BYTES)
 		progressReader := progressBar.NewProxyReader(reader)
+
+		progressBar.Start()
 
 		err = decompressBackupFile(progressReader, restoreDirectory, numberOfCPUs)
 
