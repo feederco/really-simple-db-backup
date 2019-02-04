@@ -109,8 +109,11 @@ func checkCorrectUser() error {
 	requiredUserID := "0" // Root in POSIX
 
 	currentUser, err := user.Current()
+	// When no $USER variable is setup (via cron) Go cannot determine the current user
+	// when the binary has been built without CGO. If this check fails, we should simply
+	// just hope for the best
 	if err != nil {
-		return err
+		return nil
 	}
 
 	if currentUser.Name != requiredRunAs && currentUser.Gid != requiredUserID {
