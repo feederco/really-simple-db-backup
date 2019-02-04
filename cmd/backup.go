@@ -32,13 +32,14 @@ func Begin(cliArgs []string) {
 	args := cliArgs[1:]
 
 	if len(args) == 0 {
-		pkg.ErrorLog.Printf("Usage:\n%s perform|perform-full|perform-incremental|restore|upload|test-alert|list-backups|prune [flags]\n\n", os.Args[0])
+		pkg.ErrorLog.Printf("Usage:\n%s perform|perform-full|perform-incremental|upload|restore|download|finalize-restore|test-alert|list-backups|prune [flags]\n\n", os.Args[0])
 		os.Exit(1)
 	}
 
 	uploadFileFlag := flag.String("upload-file", "", "[upload] File to upload to bucket")
 	existingVolumeIDFlag := flag.String("existing-volume-id", "", "Existing volume ID")
 	existingBackupDirectoryFlag := flag.String("existing-backup-directory", "", "Existing backup directory")
+	existingRestoreDirectoryFlag := flag.String("existing-restore-directory", "", "Existing restore directory")
 	hostnameFlag := flag.String("hostname", "", "Hostname of backups to list")
 	timestampFlag := flag.String("timestamp", "", "List backups since timestamp. Should be in format YYYYMMDDHHII")
 	verboseFlag := flag.Bool("v", false, "Verbose logging")
@@ -117,16 +118,78 @@ func Begin(cliArgs []string) {
 			fromHostname = *hostnameFlag
 		}
 
-		err = backupMysqlPerformRestore(
+		mysqlDataPath := configStruct.MysqlDataPath
+
+		// Make sure MySQL data path exists
+		if _, fileErr := os.Stat(mysqlDataPath); fileErr != nil {
+			// It did not exist, just to be sure we try to create it. If that fails this script can't continue
+			if os.IsNotExist(fileErr) {
+				err = os.MkdirAll(mysqlDataPath, 0700)
+				if err != nil {
+					pkg.ErrorLog.Fatalln("Could not access nor create the MySQL data path")
+				}
+			} else {
+				pkg.ErrorLog.Fatalln("Could not access the MySQL data path")
+			}
+		}
+
+		var restoreDirectory string
+		var mountDirectory string
+		var volume *godo.Volume
+		restoreDirectory, mountDirectory, volume, err = backupMysqlDownloadAndPrepare(
 			fromHostname,
 			*timestampFlag,
 			configStruct.DOSpaceName,
-			configStruct.MysqlDataPath,
 			*existingVolumeIDFlag,
 			*existingBackupDirectoryFlag,
 			digitalOceanClient,
 			minioClient,
 		)
+
+		if err == nil {
+			err = backupMysqlFinalizeRestore(
+				restoreDirectory,
+				configStruct.MysqlDataPath,
+				mountDirectory,
+				volume,
+				digitalOceanClient,
+				minioClient,
+			)
+		}
+	case "download":
+		fromHostname := hostname
+		if *hostnameFlag != "" {
+			fromHostname = *hostnameFlag
+		}
+
+		var restoreDirectory string
+
+		restoreDirectory, _, _, err = backupMysqlDownloadAndPrepare(
+			fromHostname,
+			*timestampFlag,
+			configStruct.DOSpaceName,
+			*existingVolumeIDFlag,
+			*existingRestoreDirectoryFlag,
+			digitalOceanClient,
+			minioClient,
+		)
+
+		if err == nil {
+			pkg.Log.Printf("Downloaded complete. Directory: %s\n", restoreDirectory)
+		}
+	case "finalize-restore":
+		err = backupMysqlFinalizeRestore(
+			*existingRestoreDirectoryFlag,
+			configStruct.MysqlDataPath,
+			"",
+			nil,
+			digitalOceanClient,
+			minioClient,
+		)
+
+		if err == nil {
+			pkg.Log.Printf("Restore complete. Don't forget to cleanup manually!")
+		}
 	case "upload":
 		if *uploadFileFlag == "" {
 			pkg.ErrorLog.Fatalln("-upload-file parameter required for `upload` command.")
@@ -219,9 +282,9 @@ func Begin(cliArgs []string) {
 func pluralize(count int, singular string, plural string) string {
 	if count == 1 {
 		return singular
-	} else {
-		return plural
 	}
+
+	return plural
 }
 
 func backupCleanup(volume *godo.Volume, mountDirectory string, digitalOceanClient *pkg.DigitalOceanClient) error {

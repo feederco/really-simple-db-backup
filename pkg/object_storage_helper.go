@@ -4,7 +4,7 @@ import (
 	"os"
 
 	"github.com/cheggaaa/pb"
-	"github.com/minio/minio-go"
+	minio "github.com/minio/minio-go"
 )
 
 // UploadFileToBucket uploads a file to a DigitalOcean bucket
@@ -15,6 +15,8 @@ func UploadFileToBucket(bucketName string, objectName string, filePath string, m
 	}
 
 	progress := pb.New64(stat.Size())
+	progress.SetUnits(pb.U_BYTES)
+	progress.ShowSpeed = true
 	progress.Start()
 
 	_, err = minioClient.FPutObject(bucketName, objectName, filePath, minio.PutObjectOptions{

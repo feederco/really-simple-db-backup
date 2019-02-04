@@ -40,7 +40,13 @@ func PerformCommand(cmdArgs ...string) (string, error) {
 		return "", fmt.Errorf("%s failed with:\n%s", strings.Join(cmdArgs, " "), err.Error())
 	}
 
+	stdErrReader, stdErr := cmd.StderrPipe()
+	if stdErr != nil {
+		return "", fmt.Errorf("%s failed with:\n%s", strings.Join(cmdArgs, " "), stdErr.Error())
+	}
+
 	output := ""
+	var errOutput []string
 
 	scanner := bufio.NewScanner(cmdReader)
 	go func() {
@@ -53,20 +59,41 @@ func PerformCommand(cmdArgs ...string) (string, error) {
 		}
 	}()
 
+	errScanner := bufio.NewScanner(stdErrReader)
+	go func() {
+		for errScanner.Scan() {
+			chunk := errScanner.Text()
+			if VerboseMode {
+				fmt.Printf("%s\n", chunk)
+			}
+			errOutput = append(errOutput, chunk)
+		}
+	}()
+
 	err = cmd.Start()
 	if err != nil {
+		lastLogLines := lastLines(errOutput, 10)
 		if VerboseMode {
-			ErrorLog.Println("Error starting Cmd", err)
+			ErrorLog.Println("Error starting command", err, lastLogLines)
 		}
-		return "", fmt.Errorf("%s failed with:\n%s", strings.Join(cmdArgs, " "), err.Error())
+		return "", fmt.Errorf("%s failed with:\n%s\n\nLast log lines:\n%s", strings.Join(cmdArgs, " "), err.Error(), lastLogLines)
 	}
 
 	err = cmd.Wait()
 	if err != nil {
-		return "", fmt.Errorf("%s failed with:\n%s", strings.Join(cmdArgs, " "), err.Error())
+		lastLogLines := lastLines(errOutput, 10)
+		return "", fmt.Errorf("%s failed with:\n%s\n\nLast log lines:\n%s", strings.Join(cmdArgs, " "), err.Error(), lastLogLines)
 	}
 
 	return output, nil
+}
+
+func lastLines(output []string, numberOfLines int) string {
+	index := numberOfLines
+	if numberOfLines < len(output) {
+		index = len(output) - 1
+	}
+	return strings.Join(output[index:numberOfLines], "\n")
 }
 
 // PerformCommandWithFileOutput performs a command with output to a file
