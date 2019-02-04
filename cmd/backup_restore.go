@@ -8,6 +8,7 @@ import (
 	"path"
 	"runtime"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/cheggaaa/pb"
@@ -46,8 +47,6 @@ func backupMysqlDownloadAndPrepare(
 	}
 
 	pkg.Log.Println("Listing backups since", sinceTimestamp.Format(time.RFC3339))
-
-	// Game plan:
 
 	// - List all backups we need
 	allBackups, err := listAllBackups(fromHostname, backupBucket, minioClient)
@@ -97,44 +96,49 @@ func backupMysqlDownloadAndPrepare(
 	pkg.Log.Println("Downloading and extracting backups")
 
 	// - Download full backup and incremental pieces
-	err = downloadBackups(backupFiles, restoreDirectory, backupBucket, minioClient)
+	var downloadDirectories []string
+	downloadDirectories, err = downloadBackups(backupFiles, restoreDirectory, backupBucket, minioClient)
 	if err != nil {
 		pkg.ErrorLog.Println("Could not download backups!")
 		return restoreDirectory, mountDirectory, volume, err
 	}
 
-	pkg.Log.Println("Decompressing backups")
-
-	numberOfCPUs := runtime.NumCPU()
-
-	// - Decompress files with as many cores as possible
-	_, err = pkg.PerformCommand(
-		"xtrabackup",
-		"--decompress",
-		"--target-dir",
-		restoreDirectory,
-		"--parallel",
-		strconv.FormatInt(int64(numberOfCPUs), 10),
-		"--remove-original",
-	)
-
 	pkg.Log.Println("Preparing backups")
 
 	// - Prepare backup
-	_, err = pkg.PerformCommand(
-		"xtrabackup",
-		"--prepare",
-		"--target-dir",
-		restoreDirectory,
-	)
+	// When an incremental backup the steps required are a bit different
+	lastIndex := len(downloadDirectories) - 1
+	finalDirectory := downloadDirectories[lastIndex]
 
-	if err != nil {
-		pkg.AlertError(configStruct.Alerting, "Could not create backup.", err)
-		return restoreDirectory, mountDirectory, volume, backupCleanup(volume, mountDirectory, digitalOceanClient)
+	hasIncrementals := len(downloadDirectories) > 1
+
+	for index := lastIndex; index >= 0; index-- {
+		directory := downloadDirectories[index]
+		isFull := lastIndex == index
+
+		prepareArgs := []string{
+			"xtrabackup",
+			"--prepare",
+			"--target-dir",
+			finalDirectory,
+		}
+
+		if isFull && hasIncrementals {
+			prepareArgs = append(prepareArgs, "--apply-log-only")
+		} else if !isFull {
+			prepareArgs = append(prepareArgs, "--incremental-dir", directory)
+		}
+
+		_, err = pkg.PerformCommand(prepareArgs...)
+
+		if err != nil {
+			pkg.AlertError(configStruct.Alerting, "Could not prepare backup.", err)
+			return restoreDirectory, mountDirectory, volume, backupCleanup(volume, mountDirectory, digitalOceanClient)
+		}
 	}
 
 	pkg.Log.Println("Prepare completed!")
-	return restoreDirectory, mountDirectory, volume, nil
+	return finalDirectory, mountDirectory, volume, nil
 }
 
 func backupMysqlFinalizeRestore(
@@ -186,14 +190,27 @@ func backupMysqlFinalizeRestore(
 	return backupCleanup(volume, mountDirectory, digitalOceanClient)
 }
 
-func downloadBackups(backups []backupItem, restoreDirectory string, bucketName string, minioClient *minio.Client) error {
+func downloadBackups(backups []backupItem, restoreDirectory string, bucketName string, minioClient *minio.Client) ([]string, error) {
 	numberOfCPUs := runtime.NumCPU()
 
-	for _, backup := range backups {
+	directoryPieces := make([]string, len(backups))
+
+	for index, backup := range backups {
+		fileName := path.Base(backup.Path)
+		fileNameWithoutExtension := strings.TrimSuffix(fileName, path.Ext(fileName))
+
+		downloadDirectory := path.Join(restoreDirectory, fileNameWithoutExtension)
+		directoryPieces[index] = downloadDirectory
+
+		err := os.MkdirAll(downloadDirectory, 0700)
+		if err != nil {
+			return nil, err
+		}
+
 		reader, size, err := getBackupReaderAndSize(minioClient, bucketName, backup.Path)
 
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		progressBar := pb.New(int(size))
@@ -203,16 +220,35 @@ func downloadBackups(backups []backupItem, restoreDirectory string, bucketName s
 
 		progressBar.Start()
 
-		err = decompressBackupFile(progressReader, restoreDirectory, numberOfCPUs)
+		err = decompressBackupFile(progressReader, downloadDirectory, numberOfCPUs)
 
 		progressBar.Finish()
 
 		if err != nil {
-			return err
+			return nil, err
+		}
+
+		pkg.Log.Println("Decompressing backups")
+
+		numberOfCPUs := runtime.NumCPU()
+
+		// - Decompress files with as many cores as possible
+		_, err = pkg.PerformCommand(
+			"xtrabackup",
+			"--decompress",
+			"--target-dir",
+			downloadDirectory,
+			"--parallel",
+			strconv.FormatInt(int64(numberOfCPUs), 10),
+			"--remove-original",
+		)
+
+		if err != nil {
+			return nil, err
 		}
 	}
 
-	return nil
+	return directoryPieces, nil
 }
 
 func decompressBackupFile(dataReader io.Reader, restoreDirectory string, numberOfCPUs int) error {

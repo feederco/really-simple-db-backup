@@ -169,7 +169,7 @@ func Begin(cliArgs []string) {
 			*timestampFlag,
 			configStruct.DOSpaceName,
 			*existingVolumeIDFlag,
-			*existingBackupDirectoryFlag,
+			*existingRestoreDirectoryFlag,
 			digitalOceanClient,
 			minioClient,
 		)

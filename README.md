@@ -151,7 +151,7 @@ really-simple-db-backup download -hostname my-other-host
 If you have run the `download` command and have a fully prepared backup that you now wish to use, you can run the `finalize-restore` command which will run the second half of steps that are run by the `restore` command.
 
 ```shell
-really-simple-db-backup finalize-restore -existing-restore-directory-flag=/mnt/my_restore_volume/really-simple-db-restore
+really-simple-db-backup finalize-restore -existing-restore-directory=/mnt/my_restore_volume/really-simple-db-restore
 ```
 
 **Note**
