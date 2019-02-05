@@ -93,6 +93,9 @@ func lastLines(output []string, numberOfLines int) string {
 	if numberOfLines < len(output) {
 		index = len(output) - 1
 	}
+	if len(output) == 0 {
+		return ""
+	}
 	return strings.Join(output[index:numberOfLines], "\n")
 }
 
