@@ -89,14 +89,15 @@ func PerformCommand(cmdArgs ...string) (string, error) {
 }
 
 func lastLines(output []string, numberOfLines int) string {
-	index := numberOfLines
-	if numberOfLines < len(output) {
-		index = len(output) - 1
-	}
 	if len(output) == 0 {
 		return ""
 	}
-	return strings.Join(output[index:numberOfLines], "\n")
+
+	index := len(output) - numberOfLines
+	if index < 0 {
+		index = 0
+	}
+	return strings.Join(output[index:], "\n")
 }
 
 // PerformCommandWithFileOutput performs a command with output to a file
