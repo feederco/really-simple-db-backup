@@ -12,6 +12,22 @@ import (
 
 const exampleJSONContents = `
 {
+	"digitalocean": {
+	  "key": "do.key",
+	  "space_endpoint": "do.space_endpoint",
+	  "space_name": "do.space_name",
+	  "space_key": "do.space_key",
+	  "space_secret": "do.space_secret"
+	},
+	"mysql": {
+  	"data_path": "mysql.data_path"
+	},
+  "persistent_storage": "hi: persistent_storage"
+}
+`
+
+const exampleLegacyJSONContents = `
+{
   "do_key": "hi: do_key",
   "do_space_endpoint": "hi: do_space_endpoint",
   "do_space_name": "hi: do_space_name",
@@ -48,23 +64,23 @@ func TestLoadConfigFromCommandLine(t *testing.T) {
 		"persistent_storage",
 	})
 
-	if configStruct.DOKey != "do_key" {
-		t.Errorf("Incorrect DOKey found: %s", configStruct.DOKey)
+	if configStruct.DigitalOcean.Key != "do_key" {
+		t.Errorf("Incorrect DOKey found: %s", configStruct.DigitalOcean.Key)
 	}
-	if configStruct.DOSpaceEndpoint != "do_space_endpoint" {
-		t.Errorf("Incorrect DOSpaceEndpoint found: %s", configStruct.DOSpaceEndpoint)
+	if configStruct.DigitalOcean.SpaceEndpoint != "do_space_endpoint" {
+		t.Errorf("Incorrect DOSpaceEndpoint found: %s", configStruct.DigitalOcean.SpaceEndpoint)
 	}
-	if configStruct.DOSpaceName != "do_space_name" {
-		t.Errorf("Incorrect DOSpaceName found: %s", configStruct.DOSpaceName)
+	if configStruct.DigitalOcean.SpaceName != "do_space_name" {
+		t.Errorf("Incorrect DOSpaceName found: %s", configStruct.DigitalOcean.SpaceName)
 	}
-	if configStruct.DOSpaceKey != "do_space_key" {
-		t.Errorf("Incorrect DOSpaceKey found: %s", configStruct.DOSpaceKey)
+	if configStruct.DigitalOcean.SpaceKey != "do_space_key" {
+		t.Errorf("Incorrect DOSpaceKey found: %s", configStruct.DigitalOcean.SpaceKey)
 	}
-	if configStruct.DOSpaceSecret != "do_space_secret" {
-		t.Errorf("Incorrect DOSpaceSecret found: %s", configStruct.DOSpaceSecret)
+	if configStruct.DigitalOcean.SpaceSecret != "do_space_secret" {
+		t.Errorf("Incorrect DOSpaceSecret found: %s", configStruct.DigitalOcean.SpaceSecret)
 	}
-	if configStruct.MysqlDataPath != "mysql_data_path" {
-		t.Errorf("Incorrect MysqlDataPath found: %s", configStruct.MysqlDataPath)
+	if configStruct.Mysql.DataPath != "mysql_data_path" {
+		t.Errorf("Incorrect MysqlDataPath found: %s", configStruct.Mysql.DataPath)
 	}
 	if configStruct.PersistentStorage != "persistent_storage" {
 		t.Errorf("Incorrect PersistentStorage found: %s", configStruct.PersistentStorage)
@@ -82,23 +98,57 @@ func TestLoadConfigFromConfigFile(t *testing.T) {
 		"_test_file.json",
 	})
 
-	if configStruct.DOKey != "hi: do_key" {
-		t.Errorf("Incorrect DOKey found: %s", configStruct.DOKey)
+	if configStruct.DigitalOcean.Key != "do.key" {
+		t.Errorf("Incorrect DOKey found: %s", configStruct.DigitalOcean.Key)
 	}
-	if configStruct.DOSpaceEndpoint != "hi: do_space_endpoint" {
-		t.Errorf("Incorrect DOSpaceEndpoint found: %s", configStruct.DOSpaceEndpoint)
+	if configStruct.DigitalOcean.SpaceEndpoint != "do.space_endpoint" {
+		t.Errorf("Incorrect DOSpaceEndpoint found: %s", configStruct.DigitalOcean.SpaceEndpoint)
 	}
-	if configStruct.DOSpaceName != "hi: do_space_name" {
-		t.Errorf("Incorrect DOSpaceName found: %s", configStruct.DOSpaceName)
+	if configStruct.DigitalOcean.SpaceName != "do.space_name" {
+		t.Errorf("Incorrect DOSpaceName found: %s", configStruct.DigitalOcean.SpaceName)
 	}
-	if configStruct.DOSpaceKey != "hi: do_space_key" {
-		t.Errorf("Incorrect DOSpaceKey found: %s", configStruct.DOSpaceKey)
+	if configStruct.DigitalOcean.SpaceKey != "do.space_key" {
+		t.Errorf("Incorrect DOSpaceKey found: %s", configStruct.DigitalOcean.SpaceKey)
 	}
-	if configStruct.DOSpaceSecret != "hi: do_space_secret" {
-		t.Errorf("Incorrect DOSpaceSecret found: %s", configStruct.DOSpaceSecret)
+	if configStruct.DigitalOcean.SpaceSecret != "do.space_secret" {
+		t.Errorf("Incorrect DOSpaceSecret found: %s", configStruct.DigitalOcean.SpaceSecret)
 	}
-	if configStruct.MysqlDataPath != "hi: mysql_data_path" {
-		t.Errorf("Incorrect MysqlDataPath found: %s", configStruct.MysqlDataPath)
+	if configStruct.Mysql.DataPath != "mysql.data_path" {
+		t.Errorf("Incorrect MysqlDataPath found: %s", configStruct.Mysql.DataPath)
+	}
+	if configStruct.PersistentStorage != "hi: persistent_storage" {
+		t.Errorf("Incorrect PersistentStorage found: %s", configStruct.PersistentStorage)
+	}
+}
+
+func TestLoadLegacyConfigFromConfigFile(t *testing.T) {
+	setupTest()
+
+	ioutil.WriteFile("_test_file.json", []byte(exampleLegacyJSONContents), 0755)
+	defer os.Remove("_test_file.json")
+
+	configStruct := loadConfig([]string{
+		"-config",
+		"_test_file.json",
+	})
+
+	if configStruct.DigitalOcean.Key != "hi: do_key" {
+		t.Errorf("Incorrect DOKey found: %s", configStruct.DigitalOcean.Key)
+	}
+	if configStruct.DigitalOcean.SpaceEndpoint != "hi: do_space_endpoint" {
+		t.Errorf("Incorrect DOSpaceEndpoint found: %s", configStruct.DigitalOcean.SpaceEndpoint)
+	}
+	if configStruct.DigitalOcean.SpaceName != "hi: do_space_name" {
+		t.Errorf("Incorrect DOSpaceName found: %s", configStruct.DigitalOcean.SpaceName)
+	}
+	if configStruct.DigitalOcean.SpaceKey != "hi: do_space_key" {
+		t.Errorf("Incorrect DOSpaceKey found: %s", configStruct.DigitalOcean.SpaceKey)
+	}
+	if configStruct.DigitalOcean.SpaceSecret != "hi: do_space_secret" {
+		t.Errorf("Incorrect DOSpaceSecret found: %s", configStruct.DigitalOcean.SpaceSecret)
+	}
+	if configStruct.Mysql.DataPath != "hi: mysql_data_path" {
+		t.Errorf("Incorrect MysqlDataPath found: %s", configStruct.Mysql.DataPath)
 	}
 	if configStruct.PersistentStorage != "hi: persistent_storage" {
 		t.Errorf("Incorrect PersistentStorage found: %s", configStruct.PersistentStorage)
@@ -108,7 +158,7 @@ func TestLoadConfigFromConfigFile(t *testing.T) {
 func TestLoadConfigOverrideFromCommandLine(t *testing.T) {
 	setupTest()
 
-	ioutil.WriteFile("_test_file.json", []byte(exampleJSONContents), 0755)
+	ioutil.WriteFile("_test_file.json", []byte(exampleLegacyJSONContents), 0755)
 	defer os.Remove("_test_file.json")
 
 	configStruct := loadConfig([]string{
@@ -131,23 +181,23 @@ func TestLoadConfigOverrideFromCommandLine(t *testing.T) {
 		"persistent_storage",
 	})
 
-	if configStruct.DOKey != "do_key" {
-		t.Errorf("Incorrect DOKey found: %s", configStruct.DOKey)
+	if configStruct.DigitalOcean.Key != "do_key" {
+		t.Errorf("Incorrect DOKey found: %s", configStruct.DigitalOcean.Key)
 	}
-	if configStruct.DOSpaceEndpoint != "do_space_endpoint" {
-		t.Errorf("Incorrect DOSpaceEndpoint found: %s", configStruct.DOSpaceEndpoint)
+	if configStruct.DigitalOcean.SpaceEndpoint != "do_space_endpoint" {
+		t.Errorf("Incorrect DOSpaceEndpoint found: %s", configStruct.DigitalOcean.SpaceEndpoint)
 	}
-	if configStruct.DOSpaceName != "do_space_name" {
-		t.Errorf("Incorrect DOSpaceName found: %s", configStruct.DOSpaceName)
+	if configStruct.DigitalOcean.SpaceName != "do_space_name" {
+		t.Errorf("Incorrect DOSpaceName found: %s", configStruct.DigitalOcean.SpaceName)
 	}
-	if configStruct.DOSpaceKey != "do_space_key" {
-		t.Errorf("Incorrect DOSpaceKey found: %s", configStruct.DOSpaceKey)
+	if configStruct.DigitalOcean.SpaceKey != "do_space_key" {
+		t.Errorf("Incorrect DOSpaceKey found: %s", configStruct.DigitalOcean.SpaceKey)
 	}
-	if configStruct.DOSpaceSecret != "do_space_secret" {
-		t.Errorf("Incorrect DOSpaceSecret found: %s", configStruct.DOSpaceSecret)
+	if configStruct.DigitalOcean.SpaceSecret != "do_space_secret" {
+		t.Errorf("Incorrect DOSpaceSecret found: %s", configStruct.DigitalOcean.SpaceSecret)
 	}
-	if configStruct.MysqlDataPath != "mysql_data_path" {
-		t.Errorf("Incorrect MysqlDataPath found: %s", configStruct.MysqlDataPath)
+	if configStruct.Mysql.DataPath != "mysql_data_path" {
+		t.Errorf("Incorrect MysqlDataPath found: %s", configStruct.Mysql.DataPath)
 	}
 	if configStruct.PersistentStorage != "persistent_storage" {
 		t.Errorf("Incorrect PersistentStorage found: %s", configStruct.PersistentStorage)

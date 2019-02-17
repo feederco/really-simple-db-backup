@@ -83,12 +83,16 @@ really-simple-db-backup perform
 
 ```json
 {
-  "do_key": "digitalocean-app-token",
-  "do_space_endpoint": "fra1.digitaloceanspaces.com",
-  "do_space_name": "my-backups",
-  "do_space_key": "auth-key-for-space",
-  "do_space_secret": "auth-secret-for-space",
-  "mysql_data_path": "(optional)",
+  "digitalocean": {
+    "key": "digitalocean-app-token",
+    "space_endpoint": "fra1.digitaloceanspaces.com",
+    "space_name": "my-backups",
+    "space_key": "auth-key-for-space",
+    "space_secret": "auth-secret-for-space"
+  },
+  "mysql": {
+    "data_path": "(optional)"
+  },
   "persistent_storage": "(optional)",
   "alerting": {
     "slack": {
@@ -214,12 +218,16 @@ The following format is expected:
 
 ```json
 {
-  "do_key": "digitalocean-app-token",
-  "do_space_endpoint": "fra1.digitaloceanspaces.com",
-  "do_space_name": "my-backups",
-  "do_space_key": "auth-key-for-space",
-  "do_space_secret": "auth-secret-for-space",
-  "mysql_data_path": "(optional)",
+  "digitalocean": {
+    "key": "digitalocean-app-token",
+    "space_endpoint": "fra1.digitaloceanspaces.com",
+    "space_name": "my-backups",
+    "space_key": "auth-key-for-space",
+    "space_secret": "auth-secret-for-space"
+  },
+  "mysql": {
+    "data_path": "(optional)"
+  },
   "persistent_storage": "(optional)",
   "alerting": {
     "slack": {
@@ -256,7 +264,7 @@ Set to number of hours between full backups. Note: This does perform the actuall
 
 ### Different MySQL data directory
 
-The default directory for MySQL is normally `/var/lib/mysql`. If you have mounted a volume for your data and set different [`datadir`](https://dev.mysql.com/doc/refman/8.0/en/data-directory.html) you can pass in the following option: `-mysql-data-path=/mnt/my_mysql_volume/mysql` or set the `"mysql_data_path"` config property in the JSON config.
+The default directory for MySQL is normally `/var/lib/mysql`. If you have mounted a volume for your data and set different [`datadir`](https://dev.mysql.com/doc/refman/8.0/en/data-directory.html) you can pass in the following option: `-mysql-data-path=/mnt/my_mysql_volume/mysql` or set the `"mysql.data_path"` config property in the JSON config.
 
 ### Persistent storage directory
 

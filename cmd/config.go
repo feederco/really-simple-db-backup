@@ -12,15 +12,32 @@ import (
 
 // ConfigStruct contains information that can be preloaded from a .json file
 type ConfigStruct struct {
-	DOKey             string              `json:"do_key"`
-	DOSpaceEndpoint   string              `json:"do_space_endpoint"`
-	DOSpaceName       string              `json:"do_space_name"`
-	DOSpaceKey        string              `json:"do_space_key"`
-	DOSpaceSecret     string              `json:"do_space_secret"`
-	MysqlDataPath     string              `json:"mysql_data_path"`
-	PersistentStorage string              `json:"persistent_storage"`
-	Alerting          *pkg.AlertingConfig `json:"alerting"`
-	Retention         *RetentionConfig    `json:"retention"`
+	LegacyDOKey           string `json:"do_key"`
+	LegacyDOSpaceEndpoint string `json:"do_space_endpoint"`
+	LegacyDOSpaceName     string `json:"do_space_name"`
+	LegacyDOSpaceKey      string `json:"do_space_key"`
+	LegacyDOSpaceSecret   string `json:"do_space_secret"`
+	LegacyMysqlDataPath   string `json:"mysql_data_path"`
+
+	DigitalOcean      DigitalOceanConfigStruct `json:"digitalocean"`
+	Mysql             MysqlConfigStruct        `json:"mysql"`
+	PersistentStorage string                   `json:"persistent_storage"`
+	Alerting          *pkg.AlertingConfig      `json:"alerting"`
+	Retention         *RetentionConfig         `json:"retention"`
+}
+
+// DigitalOceanConfigStruct contains information related to DigitalOcean
+type DigitalOceanConfigStruct struct {
+	Key           string `json:"key"`
+	SpaceEndpoint string `json:"space_endpoint"`
+	SpaceName     string `json:"space_name"`
+	SpaceKey      string `json:"space_key"`
+	SpaceSecret   string `json:"space_secret"`
+}
+
+// MysqlConfigStruct contains information related to MySQL
+type MysqlConfigStruct struct {
+	DataPath string `json:"data_path"`
 }
 
 // RetentionConfig contains options for scheduling: how often full backups are run, retention of old backups
@@ -51,11 +68,11 @@ func loadConfig(args []string) ConfigStruct {
 		os.Exit(1)
 	}
 
-	configStruct := ConfigStruct{}
+	newConfigStruct := ConfigStruct{}
 
 	if *configFlag != "" {
 		var didExist bool
-		configStruct, didExist, err = loadConfigAtPath(*configFlag)
+		newConfigStruct, didExist, err = loadConfigAtPath(*configFlag)
 		if !didExist {
 			pkg.ErrorLog.Fatalln("Could not load file from -config flag:", err)
 		}
@@ -65,7 +82,7 @@ func loadConfig(args []string) ConfigStruct {
 		}
 	} else {
 		var didExist bool
-		configStruct, didExist, err = loadConfigAtPath(defaultConfigPath)
+		newConfigStruct, didExist, err = loadConfigAtPath(defaultConfigPath)
 
 		// If default file doesn't exist we don't error. But if it does and is broken we error.
 		if didExist && err != nil {
@@ -73,60 +90,84 @@ func loadConfig(args []string) ConfigStruct {
 		}
 	}
 
-	if configStruct.MysqlDataPath == "" {
-		configStruct.MysqlDataPath = "/var/lib/mysql"
+	// Setting legacy properties
+
+	if newConfigStruct.LegacyMysqlDataPath != "" && newConfigStruct.Mysql.DataPath == "" {
+		newConfigStruct.Mysql.DataPath = newConfigStruct.LegacyMysqlDataPath
 	}
 
-	if configStruct.PersistentStorage == "" {
-		configStruct.PersistentStorage = "/var/lib/backup-mysql"
+	if newConfigStruct.LegacyDOKey != "" && newConfigStruct.DigitalOcean.Key == "" {
+		newConfigStruct.DigitalOcean.Key = newConfigStruct.LegacyDOKey
+	}
+	if newConfigStruct.LegacyDOSpaceEndpoint != "" && newConfigStruct.DigitalOcean.SpaceEndpoint == "" {
+		newConfigStruct.DigitalOcean.SpaceEndpoint = newConfigStruct.LegacyDOSpaceEndpoint
+	}
+	if newConfigStruct.LegacyDOSpaceName != "" && newConfigStruct.DigitalOcean.SpaceName == "" {
+		newConfigStruct.DigitalOcean.SpaceName = newConfigStruct.LegacyDOSpaceName
+	}
+	if newConfigStruct.LegacyDOSpaceKey != "" && newConfigStruct.DigitalOcean.SpaceKey == "" {
+		newConfigStruct.DigitalOcean.SpaceKey = newConfigStruct.LegacyDOSpaceKey
+	}
+	if newConfigStruct.LegacyDOSpaceSecret != "" && newConfigStruct.DigitalOcean.SpaceSecret == "" {
+		newConfigStruct.DigitalOcean.SpaceSecret = newConfigStruct.LegacyDOSpaceSecret
 	}
 
 	if *doKeyFlag != "" {
-		configStruct.DOKey = *doKeyFlag
+		newConfigStruct.DigitalOcean.Key = *doKeyFlag
 	}
 
 	if *doSpaceNameFlag != "" {
-		configStruct.DOSpaceName = *doSpaceNameFlag
+		newConfigStruct.DigitalOcean.SpaceName = *doSpaceNameFlag
 	}
 
 	if *doSpaceEndpointFlag != "" {
-		configStruct.DOSpaceEndpoint = *doSpaceEndpointFlag
+		newConfigStruct.DigitalOcean.SpaceEndpoint = *doSpaceEndpointFlag
 	}
 
 	if *doSpaceKeyFlag != "" {
-		configStruct.DOSpaceKey = *doSpaceKeyFlag
+		newConfigStruct.DigitalOcean.SpaceKey = *doSpaceKeyFlag
 	}
 
 	if *doSpaceSecretFlag != "" {
-		configStruct.DOSpaceSecret = *doSpaceSecretFlag
+		newConfigStruct.DigitalOcean.SpaceSecret = *doSpaceSecretFlag
 	}
 
 	if *doKeyFlag != "" {
-		configStruct.DOKey = *doKeyFlag
+		newConfigStruct.DigitalOcean.Key = *doKeyFlag
 	}
 
 	if *mysqlDataPathFlag != "" {
-		configStruct.MysqlDataPath = *mysqlDataPathFlag
+		newConfigStruct.Mysql.DataPath = *mysqlDataPathFlag
 	}
 
 	if *persistentStorageDirectoryFlag != "" {
-		configStruct.PersistentStorage = *persistentStorageDirectoryFlag
+		newConfigStruct.PersistentStorage = *persistentStorageDirectoryFlag
 	}
 
-	return configStruct
+	// Setting defaults
+
+	if newConfigStruct.Mysql.DataPath == "" {
+		newConfigStruct.Mysql.DataPath = "/var/lib/mysql"
+	}
+
+	if newConfigStruct.PersistentStorage == "" {
+		newConfigStruct.PersistentStorage = "/var/lib/backup-mysql"
+	}
+
+	return newConfigStruct
 }
 
 func loadConfigAtPath(path string) (ConfigStruct, bool, error) {
-	var configStruct ConfigStruct
+	var newConfigStruct ConfigStruct
 
 	configFile, err := ioutil.ReadFile(path)
 	if os.IsNotExist(err) {
-		return configStruct, false, nil
+		return newConfigStruct, false, nil
 	}
 
-	if err = json.Unmarshal(configFile, &configStruct); err != nil {
-		return configStruct, true, errors.New("Could not load config file. JSON decode failed: " + err.Error())
+	if err = json.Unmarshal(configFile, &newConfigStruct); err != nil {
+		return newConfigStruct, true, errors.New("Could not load config file. JSON decode failed: " + err.Error())
 	}
 
-	return configStruct, true, nil
+	return newConfigStruct, true, nil
 }

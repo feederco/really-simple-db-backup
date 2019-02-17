@@ -48,26 +48,26 @@ func Begin(cliArgs []string) {
 
 	pkg.VerboseMode = *verboseFlag
 
-	if configStruct.DOSpaceName == "" {
+	if configStruct.DigitalOcean.SpaceName == "" {
 		pkg.ErrorLog.Fatalln("-do-space-name parameter required")
 	}
 
-	if configStruct.DOSpaceEndpoint == "" {
+	if configStruct.DigitalOcean.SpaceEndpoint == "" {
 		pkg.ErrorLog.Fatalln("-do-space-endpoint parameter required")
 	}
 
-	if configStruct.DOSpaceKey == "" {
+	if configStruct.DigitalOcean.SpaceKey == "" {
 		pkg.ErrorLog.Fatalln("-do-space-key parameter required")
 	}
 
-	if configStruct.DOSpaceSecret == "" {
+	if configStruct.DigitalOcean.SpaceSecret == "" {
 		pkg.ErrorLog.Fatalln("-do-space-secret-flag parameter required")
 	}
 
 	var err error
 
-	digitalOceanClient := pkg.NewDigitalOceanClient(configStruct.DOKey)
-	minioClient, err := minio.New(configStruct.DOSpaceEndpoint, configStruct.DOSpaceKey, configStruct.DOSpaceSecret, true)
+	digitalOceanClient := pkg.NewDigitalOceanClient(configStruct.DigitalOcean.Key)
+	minioClient, err := minio.New(configStruct.DigitalOcean.SpaceEndpoint, configStruct.DigitalOcean.SpaceKey, configStruct.DigitalOcean.SpaceSecret, true)
 
 	if err != nil {
 		pkg.ErrorLog.Fatalln("Could not construct minio client.", err)
@@ -82,8 +82,8 @@ func Begin(cliArgs []string) {
 	case "perform":
 		err = backupMysqlPerform(
 			backupTypeDecide,
-			configStruct.DOSpaceName,
-			configStruct.MysqlDataPath,
+			configStruct.DigitalOcean.SpaceName,
+			configStruct.Mysql.DataPath,
 			*existingVolumeIDFlag,
 			*existingBackupDirectoryFlag,
 			configStruct.PersistentStorage,
@@ -93,8 +93,8 @@ func Begin(cliArgs []string) {
 	case "perform-full":
 		err = backupMysqlPerform(
 			backupTypeFull,
-			configStruct.DOSpaceName,
-			configStruct.MysqlDataPath,
+			configStruct.DigitalOcean.SpaceName,
+			configStruct.Mysql.DataPath,
 			*existingVolumeIDFlag,
 			*existingBackupDirectoryFlag,
 			configStruct.PersistentStorage,
@@ -104,8 +104,8 @@ func Begin(cliArgs []string) {
 	case "perform-incremental":
 		err = backupMysqlPerform(
 			backupTypeIncremental,
-			configStruct.DOSpaceName,
-			configStruct.MysqlDataPath,
+			configStruct.DigitalOcean.SpaceName,
+			configStruct.Mysql.DataPath,
 			*existingVolumeIDFlag,
 			*existingBackupDirectoryFlag,
 			configStruct.PersistentStorage,
@@ -118,7 +118,7 @@ func Begin(cliArgs []string) {
 			fromHostname = *hostnameFlag
 		}
 
-		mysqlDataPath := configStruct.MysqlDataPath
+		mysqlDataPath := configStruct.Mysql.DataPath
 
 		// Make sure MySQL data path exists
 		if _, fileErr := os.Stat(mysqlDataPath); fileErr != nil {
@@ -139,7 +139,7 @@ func Begin(cliArgs []string) {
 		restoreDirectory, mountDirectory, volume, err = backupMysqlDownloadAndPrepare(
 			fromHostname,
 			*timestampFlag,
-			configStruct.DOSpaceName,
+			configStruct.DigitalOcean.SpaceName,
 			*existingVolumeIDFlag,
 			*existingBackupDirectoryFlag,
 			digitalOceanClient,
@@ -149,7 +149,7 @@ func Begin(cliArgs []string) {
 		if err == nil {
 			err = backupMysqlFinalizeRestore(
 				restoreDirectory,
-				configStruct.MysqlDataPath,
+				configStruct.Mysql.DataPath,
 				mountDirectory,
 				volume,
 				digitalOceanClient,
@@ -167,7 +167,7 @@ func Begin(cliArgs []string) {
 		restoreDirectory, _, _, err = backupMysqlDownloadAndPrepare(
 			fromHostname,
 			*timestampFlag,
-			configStruct.DOSpaceName,
+			configStruct.DigitalOcean.SpaceName,
 			*existingVolumeIDFlag,
 			*existingRestoreDirectoryFlag,
 			digitalOceanClient,
@@ -180,7 +180,7 @@ func Begin(cliArgs []string) {
 	case "finalize-restore":
 		err = backupMysqlFinalizeRestore(
 			*existingRestoreDirectoryFlag,
-			configStruct.MysqlDataPath,
+			configStruct.Mysql.DataPath,
 			"",
 			nil,
 			digitalOceanClient,
@@ -195,7 +195,7 @@ func Begin(cliArgs []string) {
 			pkg.ErrorLog.Fatalln("-upload-file parameter required for `upload` command.")
 		}
 
-		err = backupMysqlUpload(*uploadFileFlag, configStruct.DOSpaceName, minioClient)
+		err = backupMysqlUpload(*uploadFileFlag, configStruct.DigitalOcean.SpaceName, minioClient)
 	case "prune":
 		if configStruct.Retention == nil {
 			pkg.Log.Println("No retention config. Nothing to do. Exiting")
@@ -203,7 +203,7 @@ func Begin(cliArgs []string) {
 		}
 
 		var allBackups []backupItem
-		allBackups, err = listAllBackups(hostname, configStruct.DOSpaceName, minioClient)
+		allBackups, err = listAllBackups(hostname, configStruct.DigitalOcean.SpaceName, minioClient)
 		if err != nil {
 			pkg.ErrorLog.Fatalln("Could not list backups to remove:", err)
 		}
@@ -229,7 +229,7 @@ func Begin(cliArgs []string) {
 
 			if agreement == "yes" || agreement == "y" {
 				var actuallyRemovedBackups []backupItem
-				actuallyRemovedBackups, err = removeBackups(backupsToDelete, configStruct.DOSpaceName, minioClient)
+				actuallyRemovedBackups, err = removeBackups(backupsToDelete, configStruct.DigitalOcean.SpaceName, minioClient)
 				if err != nil {
 					errString := ""
 					if len(actuallyRemovedBackups) > 0 {
@@ -250,7 +250,7 @@ func Begin(cliArgs []string) {
 		pkg.Log.Printf("Loading backups for %s\n", hostname)
 
 		var backups []backupItem
-		backups, err = listAllBackups(hostname, configStruct.DOSpaceName, minioClient)
+		backups, err = listAllBackups(hostname, configStruct.DigitalOcean.SpaceName, minioClient)
 
 		if err != nil {
 			pkg.ErrorLog.Fatalln("Could not list backups:", err)
