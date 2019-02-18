@@ -26,13 +26,15 @@ var configStruct ConfigStruct
 
 // Begin begin!
 func Begin(cliArgs []string) {
+	var err error
+
 	pkg.Log = log.New(os.Stdout, "", log.LstdFlags)
 	pkg.ErrorLog = log.New(os.Stderr, "", log.LstdFlags)
 
 	args := cliArgs[1:]
 
 	if len(args) == 0 {
-		pkg.ErrorLog.Printf("Usage:\n%s perform|perform-full|perform-incremental|upload|restore|download|finalize-restore|test-alert|list-backups|prune [flags]\n\n", os.Args[0])
+		pkg.ErrorLog.Printf("\nusage:\n%s perform|perform-full|perform-incremental|upload|restore|download|finalize-restore|test-alert|list-backups|prune [flags]\n\n", os.Args[0])
 		os.Exit(1)
 	}
 
@@ -63,8 +65,6 @@ func Begin(cliArgs []string) {
 	if configStruct.DigitalOcean.SpaceSecret == "" {
 		pkg.ErrorLog.Fatalln("-do-space-secret-flag parameter required")
 	}
-
-	var err error
 
 	digitalOceanClient := pkg.NewDigitalOceanClient(configStruct.DigitalOcean.Key)
 	minioClient, err := minio.New(configStruct.DigitalOcean.SpaceEndpoint, configStruct.DigitalOcean.SpaceKey, configStruct.DigitalOcean.SpaceSecret, true)
