@@ -17,6 +17,10 @@ archive:
     linux: Linux
     386: i386
     amd64: x86_64
+  # Since GoReleaser will always add the README and LICENSE files to the archive if the file list is empty, you’ll need to provide a filled files on the archive section.
+  # A working hack is to use something like this:
+  files:
+    - none*
 checksum:
   name_template: 'checksums.txt'
 snapshot:
