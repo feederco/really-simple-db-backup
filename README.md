@@ -43,7 +43,7 @@ Set to run 05:00 AM every day.
 ```
 SHELL=/bin/sh
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
-0 5 * * * /usr/bin/really-simple-db-backup perform > /dev/null
+0 5 * * * /usr/bin/really-simple-db-backup perform >> /var/log/really-simple-db-backup.log 2>&1
 ```
 
 #### For hourly backups
@@ -51,7 +51,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 ```
 SHELL=/bin/sh
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
-1 * * * * /usr/bin/really-simple-db-backup perform > /dev/null
+1 * * * * /usr/bin/really-simple-db-backup perform >> /var/log/really-simple-db-backup.log 2>&1
 ```
 
 ### Available commands
