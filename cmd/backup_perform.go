@@ -57,6 +57,8 @@ func backupMysqlPerform(backupType string, backupsBucket string, mysqlDataPath s
 	// - Get size of database
 	sizeInBytes, err := pkg.DirSize(mysqlDataPath)
 	if err != nil {
+		pkg.ErrorLog.Println("Could not get size of database", err)
+		pkg.AlertError(configStruct.Alerting, "Could not get size of database", err)
 		return err
 	}
 
@@ -76,6 +78,8 @@ func backupMysqlPerform(backupType string, backupsBucket string, mysqlDataPath s
 	)
 
 	if err != nil {
+		pkg.ErrorLog.Println("Could not create a volume for use", err)
+		pkg.AlertError(configStruct.Alerting, "Could not create a volume for use.", err)
 		return backupCleanup(volume, mountDirectory, digitalOceanClient)
 	}
 
