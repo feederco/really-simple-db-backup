@@ -7,6 +7,8 @@ github.com/digitalocean/go-metadata v0.0.0-20180111002115-15bd36e5f6f7 h1:ESwakc
 github.com/digitalocean/go-metadata v0.0.0-20180111002115-15bd36e5f6f7/go.mod h1:lNrzMwI4fx6xfzieyLEpYIJPLWjT/Sak4G/hIzGTEL4=
 github.com/digitalocean/godo v1.7.3 h1:0tFPilFBDsVSiAKF8hyzj/MAmRYxNc5MGhAiYZYVrpo=
 github.com/digitalocean/godo v1.7.3/go.mod h1:h6faOIcZ8lWIwNQ+DN7b3CgX4Kwby5T+nbpNqkUIozU=
+github.com/digitalocean/godo v1.29.0 h1:KgNNU0k9SZqVgn7m8NN9iDsq0+nluHBe8HR9QE0QVmA=
+github.com/digitalocean/godo v1.29.0/go.mod h1:iJnN9rVu6K5LioLxLimlq0uRI+y/eAQjROUmeU/r0hY=
 github.com/go-ini/ini v1.41.0 h1:526aoxDtxRHFQKMZfcX2OG9oOI8TJ5yPLM0Mkno/uTY=
 github.com/go-ini/ini v1.41.0/go.mod h1:ByCAeIL28uOIIG0E3PJtZPDL8WnHpFKFOtgjp+3Ies8=
 github.com/golang/protobuf v1.2.0/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
@@ -32,6 +34,8 @@ golang.org/x/net v0.0.0-20190108225652-1e06a53dbb7e h1:bRhVy7zSSasaqNksaRZiA5EEI
 golang.org/x/net v0.0.0-20190108225652-1e06a53dbb7e/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
 golang.org/x/oauth2 v0.0.0-20190115181402-5dab4167f31c h1:pcBdqVcrlT+A3i+tWsOROFONQyey9tisIQHI4xqVGLg=
 golang.org/x/oauth2 v0.0.0-20190115181402-5dab4167f31c/go.mod h1:gOpvHmFTYa4IltrdGE7lF6nIHvwfUNPOp7c8zoXwtLw=
+golang.org/x/oauth2 v0.0.0-20190402181905-9f3314589c9a h1:tImsplftrFpALCYumobsd0K86vlAs/eXGFms2txfJfA=
+golang.org/x/oauth2 v0.0.0-20190402181905-9f3314589c9a/go.mod h1:gOpvHmFTYa4IltrdGE7lF6nIHvwfUNPOp7c8zoXwtLw=
 golang.org/x/sync v0.0.0-20181221193216-37e7f081c4d4/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
 golang.org/x/sys v0.0.0-20190121090251-770c60269bf0 h1:kTCXMFd85FwiS5g4PBFOimFnVyc7jqgrMI8TZIq/W/Y=
 golang.org/x/sys v0.0.0-20190121090251-770c60269bf0/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
