@@ -18,5 +18,7 @@ func backupMysqlUpload(backupFile string, backupsBucket string, minioClient *min
 	fileName := path.Base(backupFile)
 	targetFileName := path.Join(hostname, fileName)
 
-	return pkg.UploadFileToBucket(backupsBucket, targetFileName, backupFile, minioClient)
+	return pkg.WithRetry("upload", func() error {
+		return pkg.UploadFileToBucket(backupsBucket, targetFileName, backupFile, minioClient)
+	})
 }
