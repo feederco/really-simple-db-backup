@@ -63,8 +63,7 @@ func backupMysqlPerform(backupType string, backupsBucket string, mysqlDataPath s
 	}
 
 	sizeInGigaBytes := bytesToGigaBytes(sizeInBytes)
-	// aDecentSizeInGigaBytes := sizeInGigaBytes + (sizeInGigaBytes / 6)
-	aDecentSizeInGigaBytes := sizeInGigaBytes
+	aDecentSizeInGigaBytes := sizeInGigaBytes + (sizeInGigaBytes / 10)
 
 	var volume *godo.Volume
 	var mountDirectory string
