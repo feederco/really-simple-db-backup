@@ -322,6 +322,88 @@ The `slack` entry in the config file can have the following options:
 }
 ```
 
+## Manual restore 
+
+Panic mode. 2 minutes ago you accidentally ran `rm -rf /var/lib/mysql` on the production database. For some reason you decide to do this manually, instead of using `really-simple-db-backup restore`.
+
+Now, you are reading this guide. What do I need to do? 
+
+Here are the steps:
+
+1. Boot up a new server. *Note* Decompressing takes up a lot of extra space, so add extra margin to the server.
+
+2. SSH into the server, open a new `screen` session.
+
+```shell
+screen
+```
+
+3. Install the right version of MySQL (the same version as the backup was made on) This can be super tricky. This is what I did for Ubuntu 18:
+
+Chose the right version here:
+
+[https://downloads.mysql.com/archives/community/](https://downloads.mysql.com/archives/community/)
+
+Used `wget` to download each file matching the right version of the platform. Then ran `dpkg -i` in the correct order:
+
+```shell
+dpkg -i mysql-common_*
+dpkg -i mysql-community-client-core_*
+dpkg -i mysql-community-client_*
+dpkg -i mysql-client_*
+dpkg -i mysql-community-server-core_*
+dpkg -i mysql-server_*
+```
+
+4. Stop mysql
+
+```shell
+service mysql stop
+```
+
+5. Install percona-xtrabackup:
+
+```shell
+wget https://repo.percona.com/apt/percona-release_latest.$(lsb_release -sc)_all.deb
+dpkg -i percona-release_latest.$(lsb_release -sc)_all.deb
+apt update
+percona-release enable-only tools release
+apt update
+apt install percona-xtrabackup-80 qpress
+```
+
+6. Download your backup
+
+```shell
+wget -o backup.xbstream https://secure-link-to-backup/backup.xbstream
+```
+
+6. Extract and decompress the backup into a temporary directory.
+
+```shell
+mkdir backup;
+xbstream -x < backup.xbstream -C backup/;
+for bf in `find backup/ -iname "*\.qp"`; do qpress -d $bf $(dirname $bf) && rm $bf; done;
+```
+
+7. Prepare any incremental backups.
+
+**HELP NEEDED** What are the correct steps here?
+
+8. Move the backup to the right place
+
+```shell
+mv /var/lib/mysql /var/lib/mysql-old; # just to be safe :)
+mv backup /var/lib/mysql
+chown mysql:mysql -R /var/lib/mysql
+```
+
+9. Start mysql
+
+```shell
+service mysql start
+```
+
 ## For maintainers
 
 We use [`goreleaser.com`](https://goreleaser.com) for release management. Install `goreleaser` as defined here: [goreleaser.com/install](https://goreleaser.com/install/)
